@@ -15,7 +15,7 @@
     },
     "dependencies": {
         "d3": "^5.9.2",
-        "jquery": "^2.2.0",
+        "jquery": "^3.4.1",
         "underscore": "^1.8.3"
     }
 }
