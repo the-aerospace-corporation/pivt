@@ -1,0 +1,549 @@
+<form>
+  <label>ClearQuest - Interactive (BETA)</label>
+  <description>PIVT Version: 0.1.2.19.1 --- Last pull date: None</description>
+  <fieldset submitButton="false" autoRun="true">
+    <input type="multiselect" token="ci" searchWhenChanged="true" id="multiinput1">
+      <label>CI</label>
+      <choice value="*">All</choice>
+      <default>*</default>
+      <initialValue>*</initialValue>
+      <fieldForLabel>SWConfigItem</fieldForLabel>
+      <fieldForValue>SWConfigItem</fieldForValue>
+      <search>
+        <query>index=pivt_cq $vorg$ $element$ $lab$ | stats count by SWConfigItem</query>
+        <earliest>0</earliest>
+        <latest></latest>
+      </search>
+      <change>
+        <set token="ciLabel">$label$</set>
+      </change>
+      <prefix>(</prefix>
+      <suffix>)</suffix>
+      <valuePrefix>SWConfigItem="</valuePrefix>
+      <valueSuffix>"</valueSuffix>
+      <delimiter> OR </delimiter>
+    </input>
+    <input type="multiselect" token="vorg" searchWhenChanged="true" id="multiinput4">
+      <label>Verifying Org</label>
+      <choice value="*">All</choice>
+      <default>*</default>
+      <initialValue>*</initialValue>
+      <fieldForLabel>VerifyingOrg</fieldForLabel>
+      <fieldForValue>VerifyingOrg</fieldForValue>
+      <search>
+        <query>index=pivt_cq $ci$ $element$ $lab$ | stats count by VerifyingOrg</query>
+        <earliest>0</earliest>
+        <latest></latest>
+      </search>
+      <prefix>(</prefix>
+      <suffix>)</suffix>
+      <valuePrefix>VerifyingOrg="</valuePrefix>
+      <valueSuffix>"</valueSuffix>
+      <delimiter> OR </delimiter>
+    </input>
+    <input type="multiselect" token="element" searchWhenChanged="true" id="multiinput2">
+      <label>Element</label>
+      <choice value="*">All</choice>
+      <default>*</default>
+      <initialValue>*</initialValue>
+      <fieldForLabel>SWElement</fieldForLabel>
+      <fieldForValue>SWElement</fieldForValue>
+      <search>
+        <query>index=pivt_cq $ci$ $vorg$ $lab$ | stats count by SWElement</query>
+        <earliest>0</earliest>
+        <latest></latest>
+      </search>
+      <prefix>(</prefix>
+      <suffix>)</suffix>
+      <valuePrefix>SWElement="</valuePrefix>
+      <valueSuffix>"</valueSuffix>
+      <delimiter> OR </delimiter>
+    </input>
+    <input type="multiselect" token="lab" searchWhenChanged="true" id="multiinput3">
+      <label>Lab</label>
+      <choice value="*">All</choice>
+      <default>*</default>
+      <initialValue>*</initialValue>
+      <fieldForLabel>FacilityLab</fieldForLabel>
+      <fieldForValue>FacilityLab</fieldForValue>
+      <search>
+        <query>index=pivt_cq $ci$ $vorg$ $element$ | stats count by FacilityLab</query>
+        <earliest>0</earliest>
+        <latest></latest>
+      </search>
+      <prefix>(</prefix>
+      <suffix>)</suffix>
+      <valuePrefix>FacilityLab="</valuePrefix>
+      <valueSuffix>"</valueSuffix>
+      <delimiter> OR </delimiter>
+    </input>
+    <input type="time" token="timeWindow" searchWhenChanged="true">
+      <label></label>
+      <default>
+        <earliest>-30d@d</earliest>
+        <latest>now</latest>
+      </default>
+    </input>
+  </fieldset>
+  <row>
+    <panel depends="$alwaysHideCSS$">
+      <html>
+        <style>
+          #discoveryTimechart {
+            width:70% !important;
+          }
+          #discoveryRatePie {
+            width:30% !important;
+          }
+        </style>
+      </html>
+    </panel>
+    <panel depends="$none$">
+      <table>
+        <search>
+          <query>| gentimes start=-1
+| addinfo
+| eval range = info_max_time - info_min_time
+| eval interval = case(range &lt; 24*3600+3600, "1h", range &lt; 7*24*3600+3600, "1d", range &lt; 2*31*24*3600+3600, "1d", 1=1, "1w")
+| eval span = "span=" . interval
+| eval span_name = case(interval == "1h", "Hour", interval == "1d", "Day", interval == "1w", "Week")</query>
+          <finalized>
+            <set token="span">$result.span$</set>
+            <set token="span_name">$result.span_name$</set>
+          </finalized>
+          <earliest>$timeWindow.earliest$</earliest>
+          <latest>$timeWindow.latest$</latest>
+        </search>
+        <option name="count">10</option>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>DRs Opened and Closed per $span_name$ vs Open Backlog</title>
+      <chart>
+        <search>
+          <query>index=pivt_cq DRType!=Enhancement State!=Rejected $ci$ $vorg$ $element$ $lab$
+| timechart $span$ count as opened
+| join _time type=outer
+    [search index=pivt_cq DRType!=Enhancement State=Closed $ci$ $vorg$ $element$ $lab$ earliest=0
+    | eval _time=strptime(DateClosed, "%Y-%m-%d %H:%M:%S")
+    | timechart $span$ count as closed
+    | addinfo
+    | where _time &gt; (info_min_time - 86400)
+    | fields _time closed]
+| append
+    [search index=pivt_cq DRType!=Enhancement State!=Rejected State!=Closed $ci$ $vorg$ $element$ $lab$ earliest=0
+    | stats count
+    | addinfo
+    | eval _time = info_max_time
+    | fields _time count]
+| fillnull opened closed
+| sort -_time
+| eval delta = opened - closed
+| streamstats last(delta) as last_delta, last(count) as count current=f
+| streamstats sum(last_delta) as last_delta_sum
+| eval count = count - last_delta_sum
+| sort _time
+| fields _time opened closed count
+| rename opened as Opened, closed as Closed, count as "Open Backlog"</query>
+          <earliest>$timeWindow.earliest$</earliest>
+          <latest>$timeWindow.latest$</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.overflowMode">ellipsisNone</option>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.axisTitleY.text">DRs Open/Closed per Week</option>
+        <option name="charting.axisTitleY.visibility">visible</option>
+        <option name="charting.axisTitleY2.visibility">visible</option>
+        <option name="charting.axisX.scale">linear</option>
+        <option name="charting.axisY.scale">linear</option>
+        <option name="charting.axisY2.enabled">1</option>
+        <option name="charting.axisY2.minimumNumber">0</option>
+        <option name="charting.axisY2.scale">inherit</option>
+        <option name="charting.chart">area</option>
+        <option name="charting.chart.bubbleMaximumSize">50</option>
+        <option name="charting.chart.bubbleMinimumSize">10</option>
+        <option name="charting.chart.bubbleSizeBy">area</option>
+        <option name="charting.chart.nullValueMode">gaps</option>
+        <option name="charting.chart.overlayFields">"Open Backlog"</option>
+        <option name="charting.chart.showDataLabels">none</option>
+        <option name="charting.chart.sliceCollapsingThreshold">0.01</option>
+        <option name="charting.chart.stackMode">default</option>
+        <option name="charting.chart.style">shiny</option>
+        <option name="charting.drilldown">none</option>
+        <option name="charting.fieldColors">{"Opened": 0xff0000, "Closed": 0x00cc00}</option>
+        <option name="charting.layout.splitSeries">0</option>
+        <option name="charting.layout.splitSeries.allowIndependentYRanges">0</option>
+        <option name="charting.legend.labelStyle.overflowMode">ellipsisMiddle</option>
+        <option name="charting.legend.placement">right</option>
+        <option name="height">281</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="trellis.enabled">0</option>
+        <option name="trellis.scales.shared">1</option>
+        <option name="trellis.size">medium</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Discovery Rate</title>
+      <input type="dropdown" token="agg_field" searchWhenChanged="true">
+        <label>Aggregate Field</label>
+        <choice value="DefectSymptoms">DefectSymptoms</choice>
+        <choice value="DiscrepType">DiscrepType</choice>
+        <choice value="DRType">DRType</choice>
+        <choice value="FacilityLab">FacilityLab</choice>
+        <choice value="ProductBuckets">ProductBuckets</choice>
+        <choice value="Severity">Severity</choice>
+        <choice value="SWConfigItem">SWConfigItem</choice>
+        <choice value="SWElement">SWElement</choice>
+        <choice value="VerifyingOrg">VerifyingOrg</choice>
+        <default>DRType</default>
+        <initialValue>DRType</initialValue>
+      </input>
+    </panel>
+  </row>
+  <row>
+    <panel id="discoveryTimechart">
+      <chart>
+        <title>DRs Discovered per $span_name$ by $agg_field$</title>
+        <search>
+          <query>index=pivt_cq DRType!=Enhancement State!=Rejected $ci$ $vorg$ $element$ $lab$ | timechart $span$ useother=f count by $agg_field$</query>
+          <earliest>$timeWindow.earliest$</earliest>
+          <latest>$timeWindow.latest$</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.overflowMode">ellipsisNone</option>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.axisTitleY.text">DRs Discovered per Week</option>
+        <option name="charting.axisTitleY.visibility">visible</option>
+        <option name="charting.axisTitleY2.visibility">visible</option>
+        <option name="charting.axisX.scale">linear</option>
+        <option name="charting.axisY.scale">linear</option>
+        <option name="charting.axisY2.enabled">0</option>
+        <option name="charting.axisY2.scale">inherit</option>
+        <option name="charting.chart">area</option>
+        <option name="charting.chart.bubbleMaximumSize">50</option>
+        <option name="charting.chart.bubbleMinimumSize">10</option>
+        <option name="charting.chart.bubbleSizeBy">area</option>
+        <option name="charting.chart.nullValueMode">gaps</option>
+        <option name="charting.chart.showDataLabels">none</option>
+        <option name="charting.chart.sliceCollapsingThreshold">0.01</option>
+        <option name="charting.chart.stackMode">stacked</option>
+        <option name="charting.chart.style">shiny</option>
+        <option name="charting.drilldown">none</option>
+        <option name="charting.layout.splitSeries">0</option>
+        <option name="charting.layout.splitSeries.allowIndependentYRanges">0</option>
+        <option name="charting.legend.labelStyle.overflowMode">ellipsisMiddle</option>
+        <option name="charting.legend.placement">right</option>
+        <option name="height">275</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="trellis.enabled">0</option>
+        <option name="trellis.scales.shared">1</option>
+        <option name="trellis.size">medium</option>
+      </chart>
+    </panel>
+    <panel id="discoveryRatePie">
+      <chart>
+        <title>DR Discovery Rate per Week by $agg_field$</title>
+        <search>
+          <query>index=pivt_cq DRType!=Enhancement State!=Rejected (SWConfigItem="*") (VerifyingOrg="*") (SWElement="*") (FacilityLab="*")
+| fillnull value="NULL" $agg_field$
+| bin span=1w _time
+| stats count by _time, $agg_field$
+| stats avg(count) as discovered by $agg_field$</query>
+          <earliest>-30d@d</earliest>
+          <latest>now</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="charting.chart">pie</option>
+        <option name="charting.drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>DR Severity Distribution (All Time)</title>
+      <chart>
+        <search>
+          <query>index=pivt_cq DRType!=Enhancement State!=Rejected $ci$ $vorg$ $element$ $lab$ Severity!="N/A" | chart count by Severity</query>
+          <earliest>$timeWindow.earliest$</earliest>
+          <latest>$timeWindow.latest$</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.overflowMode">ellipsisNone</option>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisTitleX.visibility">visible</option>
+        <option name="charting.axisTitleY.visibility">visible</option>
+        <option name="charting.axisTitleY2.visibility">visible</option>
+        <option name="charting.axisX.scale">linear</option>
+        <option name="charting.axisY.scale">linear</option>
+        <option name="charting.axisY2.enabled">0</option>
+        <option name="charting.axisY2.scale">inherit</option>
+        <option name="charting.chart">pie</option>
+        <option name="charting.chart.bubbleMaximumSize">50</option>
+        <option name="charting.chart.bubbleMinimumSize">10</option>
+        <option name="charting.chart.bubbleSizeBy">area</option>
+        <option name="charting.chart.nullValueMode">gaps</option>
+        <option name="charting.chart.showDataLabels">none</option>
+        <option name="charting.chart.sliceCollapsingThreshold">0.01</option>
+        <option name="charting.chart.stackMode">default</option>
+        <option name="charting.chart.style">shiny</option>
+        <option name="charting.drilldown">none</option>
+        <option name="charting.layout.splitSeries">0</option>
+        <option name="charting.layout.splitSeries.allowIndependentYRanges">0</option>
+        <option name="charting.legend.labelStyle.overflowMode">ellipsisMiddle</option>
+        <option name="charting.legend.placement">right</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="trellis.enabled">0</option>
+        <option name="trellis.scales.shared">1</option>
+        <option name="trellis.size">medium</option>
+      </chart>
+    </panel>
+    <panel>
+      <title>DR Problem Type Distribution (All Time)</title>
+      <chart>
+        <search>
+          <query>index=pivt_cq DRType!=Enhancement State!=Rejected $ci$ $vorg$ $element$ $lab$ | chart count by ProblemType</query>
+          <earliest>$timeWindow.earliest$</earliest>
+          <latest>$timeWindow.latest$</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.overflowMode">ellipsisNone</option>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisTitleX.visibility">visible</option>
+        <option name="charting.axisTitleY.visibility">visible</option>
+        <option name="charting.axisTitleY2.visibility">visible</option>
+        <option name="charting.axisX.scale">linear</option>
+        <option name="charting.axisY.scale">linear</option>
+        <option name="charting.axisY2.enabled">0</option>
+        <option name="charting.axisY2.scale">inherit</option>
+        <option name="charting.chart">pie</option>
+        <option name="charting.chart.bubbleMaximumSize">50</option>
+        <option name="charting.chart.bubbleMinimumSize">10</option>
+        <option name="charting.chart.bubbleSizeBy">area</option>
+        <option name="charting.chart.nullValueMode">gaps</option>
+        <option name="charting.chart.showDataLabels">none</option>
+        <option name="charting.chart.sliceCollapsingThreshold">0.01</option>
+        <option name="charting.chart.stackMode">default</option>
+        <option name="charting.chart.style">shiny</option>
+        <option name="charting.drilldown">none</option>
+        <option name="charting.layout.splitSeries">0</option>
+        <option name="charting.layout.splitSeries.allowIndependentYRanges">0</option>
+        <option name="charting.legend.labelStyle.overflowMode">ellipsisMiddle</option>
+        <option name="charting.legend.placement">right</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="trellis.enabled">0</option>
+        <option name="trellis.scales.shared">1</option>
+        <option name="trellis.size">medium</option>
+      </chart>
+    </panel>
+    <panel>
+      <title>DR Severity Distribution (Open)</title>
+      <chart>
+        <search>
+          <query>index=pivt_cq DRType!=Enhancement State!=Rejected $ci$ $vorg$ $element$ $lab$ Severity!="N/A" State!=Closed | chart count by Severity</query>
+          <earliest>$timeWindow.earliest$</earliest>
+          <latest>$timeWindow.latest$</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.overflowMode">ellipsisNone</option>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisTitleX.visibility">visible</option>
+        <option name="charting.axisTitleY.visibility">visible</option>
+        <option name="charting.axisTitleY2.visibility">visible</option>
+        <option name="charting.axisX.scale">linear</option>
+        <option name="charting.axisY.scale">linear</option>
+        <option name="charting.axisY2.enabled">0</option>
+        <option name="charting.axisY2.scale">inherit</option>
+        <option name="charting.chart">pie</option>
+        <option name="charting.chart.bubbleMaximumSize">50</option>
+        <option name="charting.chart.bubbleMinimumSize">10</option>
+        <option name="charting.chart.bubbleSizeBy">area</option>
+        <option name="charting.chart.nullValueMode">gaps</option>
+        <option name="charting.chart.showDataLabels">none</option>
+        <option name="charting.chart.sliceCollapsingThreshold">0.01</option>
+        <option name="charting.chart.stackMode">default</option>
+        <option name="charting.chart.style">shiny</option>
+        <option name="charting.drilldown">none</option>
+        <option name="charting.layout.splitSeries">0</option>
+        <option name="charting.layout.splitSeries.allowIndependentYRanges">0</option>
+        <option name="charting.legend.labelStyle.overflowMode">ellipsisMiddle</option>
+        <option name="charting.legend.placement">right</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="trellis.enabled">0</option>
+        <option name="trellis.scales.shared">1</option>
+        <option name="trellis.size">medium</option>
+      </chart>
+    </panel>
+    <panel>
+      <title>DR Problem Type Distribution (Open)</title>
+      <chart>
+        <search>
+          <query>index=pivt_cq DRType!=Enhancement State!=Rejected $ci$ $vorg$ $element$ $lab$ State!=Closed | chart count by ProblemType</query>
+          <earliest>$timeWindow.earliest$</earliest>
+          <latest>$timeWindow.latest$</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.overflowMode">ellipsisNone</option>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisTitleX.visibility">visible</option>
+        <option name="charting.axisTitleY.visibility">visible</option>
+        <option name="charting.axisTitleY2.visibility">visible</option>
+        <option name="charting.axisX.scale">linear</option>
+        <option name="charting.axisY.scale">linear</option>
+        <option name="charting.axisY2.enabled">0</option>
+        <option name="charting.axisY2.scale">inherit</option>
+        <option name="charting.chart">pie</option>
+        <option name="charting.chart.bubbleMaximumSize">50</option>
+        <option name="charting.chart.bubbleMinimumSize">10</option>
+        <option name="charting.chart.bubbleSizeBy">area</option>
+        <option name="charting.chart.nullValueMode">gaps</option>
+        <option name="charting.chart.showDataLabels">none</option>
+        <option name="charting.chart.sliceCollapsingThreshold">0.01</option>
+        <option name="charting.chart.stackMode">default</option>
+        <option name="charting.chart.style">shiny</option>
+        <option name="charting.drilldown">none</option>
+        <option name="charting.layout.splitSeries">0</option>
+        <option name="charting.layout.splitSeries.allowIndependentYRanges">0</option>
+        <option name="charting.legend.labelStyle.overflowMode">ellipsisMiddle</option>
+        <option name="charting.legend.placement">right</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="trellis.enabled">0</option>
+        <option name="trellis.scales.shared">1</option>
+        <option name="trellis.size">medium</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Open DR Age (Days)</title>
+      <chart>
+        <search>
+          <query>index=pivt_cq DRType!=Enhancement State!=Closed State!=Rejected $ci$ $vorg$ $element$ $lab$ | eval age = (now() - _time) / 60 / 60 / 24 | eval ageRange=case(age &lt; 20, "age &lt; 20", age &gt;= 20 AND age &lt; 40, "20 &lt; age &lt; 40", age &gt;= 40, "age &gt; 40") | chart count by ageRange</query>
+          <earliest>$timeWindow.earliest$</earliest>
+          <latest>$timeWindow.latest$</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.overflowMode">ellipsisNone</option>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisTitleX.visibility">visible</option>
+        <option name="charting.axisTitleY.visibility">visible</option>
+        <option name="charting.axisTitleY2.visibility">visible</option>
+        <option name="charting.axisX.scale">linear</option>
+        <option name="charting.axisY.scale">linear</option>
+        <option name="charting.axisY2.enabled">0</option>
+        <option name="charting.axisY2.scale">inherit</option>
+        <option name="charting.chart">pie</option>
+        <option name="charting.chart.bubbleMaximumSize">50</option>
+        <option name="charting.chart.bubbleMinimumSize">10</option>
+        <option name="charting.chart.bubbleSizeBy">area</option>
+        <option name="charting.chart.nullValueMode">connect</option>
+        <option name="charting.chart.showDataLabels">none</option>
+        <option name="charting.chart.sliceCollapsingThreshold">0.01</option>
+        <option name="charting.chart.stackMode">default</option>
+        <option name="charting.chart.style">shiny</option>
+        <option name="charting.drilldown">none</option>
+        <option name="charting.layout.splitSeries">0</option>
+        <option name="charting.layout.splitSeries.allowIndependentYRanges">0</option>
+        <option name="charting.legend.labelStyle.overflowMode">ellipsisMiddle</option>
+        <option name="charting.legend.placement">right</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="trellis.enabled">0</option>
+        <option name="trellis.scales.shared">1</option>
+        <option name="trellis.size">medium</option>
+      </chart>
+    </panel>
+    <panel>
+      <title>Open DR Age by Severity (Days)</title>
+      <chart>
+        <search>
+          <query>index=pivt_cq DRType!=Enhancement State!=Closed State!=Rejected $ci$ $vorg$ $element$ $lab$ | eval age = (now() - _time) / 60 / 60 / 24 | eval ageRange=case(age &lt; 20, "age &lt; 20", age &gt;= 20 AND age &lt; 40, "20 &lt; age &lt; 40", age &gt;= 40, "age &gt; 40") | chart count over ageRange by Severity</query>
+          <earliest>0</earliest>
+          <latest></latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.overflowMode">ellipsisNone</option>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisTitleX.visibility">visible</option>
+        <option name="charting.axisTitleY.visibility">visible</option>
+        <option name="charting.axisTitleY2.visibility">visible</option>
+        <option name="charting.axisX.scale">linear</option>
+        <option name="charting.axisY.scale">linear</option>
+        <option name="charting.axisY2.enabled">0</option>
+        <option name="charting.axisY2.scale">inherit</option>
+        <option name="charting.chart">column</option>
+        <option name="charting.chart.bubbleMaximumSize">50</option>
+        <option name="charting.chart.bubbleMinimumSize">10</option>
+        <option name="charting.chart.bubbleSizeBy">area</option>
+        <option name="charting.chart.nullValueMode">connect</option>
+        <option name="charting.chart.showDataLabels">none</option>
+        <option name="charting.chart.sliceCollapsingThreshold">0.01</option>
+        <option name="charting.chart.stackMode">default</option>
+        <option name="charting.chart.style">shiny</option>
+        <option name="charting.drilldown">none</option>
+        <option name="charting.layout.splitSeries">0</option>
+        <option name="charting.layout.splitSeries.allowIndependentYRanges">0</option>
+        <option name="charting.legend.labelStyle.overflowMode">ellipsisMiddle</option>
+        <option name="charting.legend.placement">right</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="trellis.enabled">0</option>
+        <option name="trellis.scales.shared">1</option>
+        <option name="trellis.size">medium</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Open DRs per CI</title>
+      <chart>
+        <search>
+          <query>index=pivt_cq DRType!=Enhancement State!=Closed State!=Rejected $ci$ $vorg$ $element$ $lab$ | stats count by SWConfigItem</query>
+          <earliest>0</earliest>
+          <latest></latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.overflowMode">ellipsisNone</option>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisTitleX.text">CI</option>
+        <option name="charting.axisTitleX.visibility">visible</option>
+        <option name="charting.axisTitleY.text">Number of DRs</option>
+        <option name="charting.axisTitleY.visibility">visible</option>
+        <option name="charting.axisTitleY2.visibility">visible</option>
+        <option name="charting.axisX.abbreviation">none</option>
+        <option name="charting.axisX.scale">linear</option>
+        <option name="charting.axisY.abbreviation">none</option>
+        <option name="charting.axisY.scale">linear</option>
+        <option name="charting.axisY2.abbreviation">none</option>
+        <option name="charting.axisY2.enabled">0</option>
+        <option name="charting.axisY2.scale">inherit</option>
+        <option name="charting.chart">column</option>
+        <option name="charting.chart.bubbleMaximumSize">50</option>
+        <option name="charting.chart.bubbleMinimumSize">10</option>
+        <option name="charting.chart.bubbleSizeBy">area</option>
+        <option name="charting.chart.nullValueMode">gaps</option>
+        <option name="charting.chart.showDataLabels">none</option>
+        <option name="charting.chart.sliceCollapsingThreshold">0.01</option>
+        <option name="charting.chart.stackMode">default</option>
+        <option name="charting.chart.style">shiny</option>
+        <option name="charting.drilldown">none</option>
+        <option name="charting.layout.splitSeries">0</option>
+        <option name="charting.layout.splitSeries.allowIndependentYRanges">0</option>
+        <option name="charting.legend.labelStyle.overflowMode">ellipsisMiddle</option>
+        <option name="charting.legend.mode">standard</option>
+        <option name="charting.legend.placement">none</option>
+        <option name="charting.lineWidth">2</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="trellis.enabled">0</option>
+        <option name="trellis.scales.shared">1</option>
+        <option name="trellis.size">medium</option>
+      </chart>
+    </panel>
+  </row>
+</form>

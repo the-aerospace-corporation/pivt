@@ -1,0 +1,304 @@
+<form>
+  <label>Jenkins Production Statistics</label>
+  <description>PIVT Version: 0.1.2.19.1 --- Last pull date: None</description>
+  <search id="baseSearch">
+    <query>index=pivt_jenkins | fields _time instance ss ci stage number iteration release result duration ttr derived_cause passCount failCount skipCount totalCount</query>
+    <earliest>$timeWindow.earliest$</earliest>
+    <latest>$timeWindow.latest$</latest>
+  </search>
+  <search id="filtersSearch" base="baseSearch">
+    <query>| stats count by instance, ss, ci, stage, iteration, release, derived_cause</query>
+  </search>
+  <search id="jenkinsBaseSearch" base="baseSearch">
+    <query>| search instance=Production $ss$ $ci$ $iteration$ $cause$</query>
+  </search>
+  <fieldset submitButton="false">
+    <input type="multiselect" token="ss" searchWhenChanged="true" id="multiinput1">
+      <label>SS</label>
+      <choice value="*">All</choice>
+      <default>*</default>
+      <initialValue>*</initialValue>
+      <fieldForLabel>ss</fieldForLabel>
+      <fieldForValue>ss</fieldForValue>
+      <search base="filtersSearch">
+        <query>| search $ci$ $iteration$ $cause$ | stats count by ss</query>
+      </search>
+      <prefix>(</prefix>
+      <suffix>)</suffix>
+      <valuePrefix>ss="</valuePrefix>
+      <valueSuffix>"</valueSuffix>
+      <delimiter> OR </delimiter>
+    </input>
+    <input type="multiselect" token="ci" searchWhenChanged="true" id="multiinput2">
+      <label>CI</label>
+      <choice value="*">All</choice>
+      <default>*</default>
+      <initialValue>*</initialValue>
+      <fieldForLabel>ci</fieldForLabel>
+      <fieldForValue>ci</fieldForValue>
+      <search base="filtersSearch">
+        <query>| search $ss$ $iteration$ $cause$ | stats count by ci</query>
+      </search>
+      <prefix>(</prefix>
+      <suffix>)</suffix>
+      <valuePrefix>ci="</valuePrefix>
+      <valueSuffix>"</valueSuffix>
+      <delimiter> OR </delimiter>
+    </input>
+    <input type="multiselect" token="iteration" searchWhenChanged="true" id="multiinput3">
+      <label>Iteration</label>
+      <choice value="*">All</choice>
+      <default>*</default>
+      <initialValue>*</initialValue>
+      <fieldForLabel>iteration</fieldForLabel>
+      <fieldForValue>iteration</fieldForValue>
+      <search base="filtersSearch">
+        <query>| search $ss$ $ci$ $cause$ | stats count by iteration</query>
+      </search>
+      <prefix>(</prefix>
+      <suffix>)</suffix>
+      <valuePrefix>iteration="</valuePrefix>
+      <valueSuffix>"</valueSuffix>
+      <delimiter> OR </delimiter>
+    </input>
+    <input type="multiselect" token="cause" searchWhenChanged="true" id="multiinput4">
+      <label>Cause</label>
+      <choice value="*">All</choice>
+      <default>*</default>
+      <initialValue>*</initialValue>
+      <fieldForLabel>derived_cause</fieldForLabel>
+      <fieldForValue>derived_cause</fieldForValue>
+      <search base="filtersSearch">
+        <query>| search $ss$ $ci$ $iteration$ | stats count by derived_cause</query>
+      </search>
+      <prefix>(</prefix>
+      <suffix>)</suffix>
+      <valuePrefix>derived_cause="</valuePrefix>
+      <valueSuffix>"</valueSuffix>
+      <delimiter> OR </delimiter>
+    </input>
+    <input type="time" token="timeWindow" searchWhenChanged="true">
+      <label></label>
+      <default>
+        <earliest>-7d@d</earliest>
+        <latest>now</latest>
+      </default>
+    </input>
+  </fieldset>
+  <row>
+    <panel>
+      <title>Overall View of Production Pipeline Job Activity</title>
+      <table>
+        <search base="jenkinsBaseSearch">
+          <query>| stats count, earliest(_time) as earliest, latest(_time) as latest by ci
+| rename ci as CI
+| addinfo
+| eval Earliest=strftime(earliest, "%m/%d/%Y")
+| eval Latest=strftime(latest, "%m/%d/%Y")
+| eval windowEarliest = if(info_min_time == 0, earliest, info_min_time)
+| eval windowLatest = if(info_max_time == "+Infinity", latest, info_max_time)
+| eval "Runs/Day"=coalesce(round(count/ceiling((windowLatest - windowEarliest)/86400), 2), 1)
+| rename count as "Job Count"
+| table CI "Job Count" Earliest Latest "Runs/Day"</query>
+        </search>
+        <option name="count">20</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <chart>
+        <title>Number of Jenkins Job Runs by Result by Day</title>
+        <search base="jenkinsBaseSearch">
+          <query>| timechart span=1d count by result
+| addtotals
+| `lineartrend(_time, Total)`
+| rename newY as Trend
+| fields - R R2 numevents slope sumX sumX2 sumXY sumY sumY2 yintercept Total
+| untable _time result value
+| timechart span=1d values(value) as count by result</query>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.axisTitleY.text">Number of Runs</option>
+        <option name="charting.axisY.minimumNumber">0</option>
+        <option name="charting.axisY2.enabled">0</option>
+        <option name="charting.chart">column</option>
+        <option name="charting.chart.overlayFields">Trend</option>
+        <option name="charting.chart.showDataLabels">none</option>
+        <option name="charting.chart.stackMode">stacked</option>
+        <option name="charting.fieldColors">{"ABORTED": 0x000000, "FAILURE": 0xff0000, "SUCCESS":0x00cc00, "UNSTABLE": 0xffff00}</option>
+        <option name="charting.legend.placement">right</option>
+        <option name="refresh.display">progressbar</option>
+        <drilldown>
+          <eval token="drilldown.latest">$earliest$ + 86400</eval>
+          <link target="_blank">/app/pivt/search?q=index=pivt_jenkins stage=build ss="$ss$" ci="$ci$" instance="$instance$" iteration="$iteration$" derived_cause="$cause$" result=$click.name2$ | table _time ss ci stage number result duration ttr instance&amp;earliest="$earliest$"&amp;latest=$drilldown.latest$</link>
+        </drilldown>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <chart>
+        <title>Average Pipeline Phase Duration by CI</title>
+        <search base="jenkinsBaseSearch">
+          <query>| stats avg(duration) as avgDuration by ci, stage
+| eval avgDuration = round(avgDuration / 1000 / 60 / 60, 2)
+| rename ci as CI
+| chart values(avgDuration) over CI by stage
+| fields CI AWS_FunctionalTest AWS_Deploy Provision Stage Package UnitTest Build</query>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.overflowMode">ellipsisNone</option>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisTitleX.visibility">visible</option>
+        <option name="charting.axisTitleY.text">Duration (hours)</option>
+        <option name="charting.axisTitleY.visibility">visible</option>
+        <option name="charting.axisTitleY2.visibility">visible</option>
+        <option name="charting.axisX.abbreviation">none</option>
+        <option name="charting.axisX.scale">linear</option>
+        <option name="charting.axisY.abbreviation">none</option>
+        <option name="charting.axisY.scale">linear</option>
+        <option name="charting.axisY2.abbreviation">none</option>
+        <option name="charting.axisY2.enabled">0</option>
+        <option name="charting.axisY2.scale">inherit</option>
+        <option name="charting.chart">column</option>
+        <option name="charting.chart.bubbleMaximumSize">50</option>
+        <option name="charting.chart.bubbleMinimumSize">10</option>
+        <option name="charting.chart.bubbleSizeBy">area</option>
+        <option name="charting.chart.nullValueMode">gaps</option>
+        <option name="charting.chart.showDataLabels">none</option>
+        <option name="charting.chart.sliceCollapsingThreshold">0.01</option>
+        <option name="charting.chart.stackMode">stacked</option>
+        <option name="charting.chart.style">shiny</option>
+        <option name="charting.drilldown">none</option>
+        <option name="charting.layout.splitSeries">0</option>
+        <option name="charting.layout.splitSeries.allowIndependentYRanges">0</option>
+        <option name="charting.legend.labelStyle.overflowMode">ellipsisMiddle</option>
+        <option name="charting.legend.mode">standard</option>
+        <option name="charting.legend.placement">right</option>
+        <option name="charting.lineWidth">2</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="trellis.enabled">0</option>
+        <option name="trellis.scales.shared">1</option>
+        <option name="trellis.size">medium</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <table>
+        <title>Pipeline Phase Duration Matrix (hours)</title>
+        <search base="jenkinsBaseSearch">
+          <query>| stats avg(duration) as avgDuration by ci, stage
+| eval avgDuration = round(avgDuration / 1000 / 60 / 60, 2)
+| rename ci as CI
+| chart values(avgDuration) over CI by stage
+| fields - Pipeline
+| fields CI Build UnitTest Package Stage Provision AWS_Deploy AWS_FunctionalTest
+| addtotals</query>
+        </search>
+        <option name="count">20</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <chart>
+        <title>Number of Jenkins Job Runs by Iteration by Week</title>
+        <search base="jenkinsBaseSearch">
+          <query>| timechart span=1w count by iteration</query>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.overflowMode">ellipsisNone</option>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.axisTitleY.text">Number of Runs</option>
+        <option name="charting.axisTitleY.visibility">visible</option>
+        <option name="charting.axisTitleY2.visibility">visible</option>
+        <option name="charting.axisX.abbreviation">none</option>
+        <option name="charting.axisX.scale">linear</option>
+        <option name="charting.axisY.abbreviation">none</option>
+        <option name="charting.axisY.scale">linear</option>
+        <option name="charting.axisY2.abbreviation">none</option>
+        <option name="charting.axisY2.enabled">0</option>
+        <option name="charting.axisY2.scale">inherit</option>
+        <option name="charting.chart">area</option>
+        <option name="charting.chart.bubbleMaximumSize">50</option>
+        <option name="charting.chart.bubbleMinimumSize">10</option>
+        <option name="charting.chart.bubbleSizeBy">area</option>
+        <option name="charting.chart.nullValueMode">connect</option>
+        <option name="charting.chart.showDataLabels">none</option>
+        <option name="charting.chart.sliceCollapsingThreshold">0.01</option>
+        <option name="charting.chart.stackMode">stacked</option>
+        <option name="charting.chart.style">shiny</option>
+        <option name="charting.drilldown">none</option>
+        <option name="charting.layout.splitSeries">0</option>
+        <option name="charting.layout.splitSeries.allowIndependentYRanges">0</option>
+        <option name="charting.legend.labelStyle.overflowMode">ellipsisMiddle</option>
+        <option name="charting.legend.mode">standard</option>
+        <option name="charting.legend.placement">right</option>
+        <option name="charting.lineWidth">2</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="trellis.enabled">0</option>
+        <option name="trellis.scales.shared">1</option>
+        <option name="trellis.size">medium</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <chart>
+        <title>Number of Jenkins Job Runs by Cause by Week</title>
+        <search base="jenkinsBaseSearch">
+          <query>| timechart span=1w count by derived_cause</query>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.overflowMode">ellipsisNone</option>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.axisTitleY.text">Number of Runs</option>
+        <option name="charting.axisTitleY.visibility">visible</option>
+        <option name="charting.axisTitleY2.visibility">visible</option>
+        <option name="charting.axisX.abbreviation">none</option>
+        <option name="charting.axisX.scale">linear</option>
+        <option name="charting.axisY.abbreviation">none</option>
+        <option name="charting.axisY.scale">linear</option>
+        <option name="charting.axisY2.abbreviation">none</option>
+        <option name="charting.axisY2.enabled">0</option>
+        <option name="charting.axisY2.scale">inherit</option>
+        <option name="charting.chart">area</option>
+        <option name="charting.chart.bubbleMaximumSize">50</option>
+        <option name="charting.chart.bubbleMinimumSize">10</option>
+        <option name="charting.chart.bubbleSizeBy">area</option>
+        <option name="charting.chart.nullValueMode">connect</option>
+        <option name="charting.chart.showDataLabels">none</option>
+        <option name="charting.chart.sliceCollapsingThreshold">0.01</option>
+        <option name="charting.chart.stackMode">stacked</option>
+        <option name="charting.chart.style">shiny</option>
+        <option name="charting.drilldown">none</option>
+        <option name="charting.layout.splitSeries">0</option>
+        <option name="charting.layout.splitSeries.allowIndependentYRanges">0</option>
+        <option name="charting.legend.labelStyle.overflowMode">ellipsisMiddle</option>
+        <option name="charting.legend.mode">standard</option>
+        <option name="charting.legend.placement">right</option>
+        <option name="charting.lineWidth">2</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="trellis.enabled">0</option>
+        <option name="trellis.scales.shared">1</option>
+        <option name="trellis.size">medium</option>
+      </chart>
+    </panel>
+  </row>
+</form>

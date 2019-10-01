@@ -1,0 +1,212 @@
+<form>
+  <label>%%ci33%% Run Inspector (BETA)</label>
+  <description>PIVT Version: 0.1.2.19.1 --- Last pull date: None</description>
+  <search id="filtersBaseSearch">
+    <query>index=pivt_ins pipeline=AllCores OR pipeline=patch OR core=AllCores
+| eval pipeline = if(isnull(pipeline), core, pipeline)
+| eval branch = if(isnull(branch), instance, branch)
+| stats count by pipeline, branch, id</query>
+  </search>
+  <search id="baseSearch">
+    <query>index=pivt_ins pipeline=AllCores OR pipeline=patch OR core=AllCores id=$id$
+| eval pipeline = if(isnull(pipeline), core, pipeline)
+| eval branch = if(isnull(branch), instance, branch)
+| search pipeline=$pipeline$ branch=$branch$
+| rename params.JOB_START as job_start, params.JOB_END as job_end, durationMillis as duration
+| eval datetime = strftime(_time,  "%l:%M %p;%A, %b %d, %Y")
+| makemv delim=";" datetime
+| eval time = mvindex(datetime, 0)
+| eval date = mvindex(datetime, 1)
+| spath path=stages{} output=x
+| table _time pipeline branch id status duration x job_start job_end date time</query>
+    <done>
+      <set token="time">$result.time$</set>
+      <set token="date">$result.date$</set>
+    </done>
+  </search>
+  <search id="stagesBaseSearch" base="baseSearch">
+    <query>| mvexpand x
+| rename id as run_id, status as run_status, duration as run_duration
+| spath input=x
+| rename id as stage_id, status as stage_status, durationMillis as stage_duration
+| rename run_id as id, run_status as status, run_duration as duration
+| rename truth.name as truth_name, truth.core as truth_core, truth.node as truth_node startTimeMillis as start_time
+| eventstats count as stages_total by id
+| eval job_start_id = case(name == job_start, stage_id, isnull(job_start), 0, true(), null())
+| sort -_time -id -job_start_id
+| filldown job_start_id
+| sort -_time -id +stage_id
+| streamstats count as stage_num by id
+| where stage_id &gt;= job_start_id
+| fields _time pipeline branch id status duration name stage_duration stage_id stage_num stage_status truth_core truth_name truth_node job_start_id stages_total</query>
+  </search>
+  <fieldset submitButton="false" autoRun="true">
+    <input type="dropdown" token="pipeline" searchWhenChanged="true">
+      <label>Pipeline</label>
+      <search base="filtersBaseSearch">
+        <query>| stats count by pipeline</query>
+      </search>
+      <fieldForLabel>pipeline</fieldForLabel>
+      <fieldForValue>pipeline</fieldForValue>
+      <change>
+        <condition match="$value$ != $last_pipeline$">
+          <unset token="form.branch"></unset>
+          <unset token="form.id"></unset>
+        </condition>
+        <condition match="true()">
+          <set token="last_pipeline">$value$</set>
+        </condition>
+      </change>
+    </input>
+    <input type="dropdown" token="branch" searchWhenChanged="true">
+      <label>Branch</label>
+      <search base="filtersBaseSearch">
+        <query>| search pipeline=$pipeline$ | stats count by branch</query>
+      </search>
+      <fieldForLabel>branch</fieldForLabel>
+      <fieldForValue>branch</fieldForValue>
+      <change>
+        <condition match="$value$ != $last_branch$">
+          <unset token="form.id"></unset>
+        </condition>
+        <condition match="true()">
+          <set token="last_branch">$value$</set>
+        </condition>
+      </change>
+    </input>
+    <input type="dropdown" token="id" searchWhenChanged="true">
+      <label>ID</label>
+      <search base="filtersBaseSearch">
+        <query>| search pipeline=$pipeline$ branch=$branch$ | stats count by id | sort -id</query>
+      </search>
+      <fieldForLabel>id</fieldForLabel>
+      <fieldForValue>id</fieldForValue>
+    </input>
+  </fieldset>
+  <row>
+    <panel>
+      <title>Time</title>
+      <html>
+        <center>
+          <p>
+            <font size="6">
+              <b>$time$</b>
+            </font>
+          </p>
+          <p>
+            <font size="6">
+              <b>$date$</b>
+            </font>
+          </p>
+        </center>
+      </html>
+    </panel>
+    <panel>
+      <title>Result</title>
+      <single>
+        <search base="baseSearch">
+          <query>| table status</query>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="showTrendIndicator">1</option>
+        <option name="trendDisplayMode">absolute</option>
+        <option name="useColors">0</option>
+      </single>
+    </panel>
+    <panel>
+      <title>Duration</title>
+      <single>
+        <search base="baseSearch">
+          <query>| eval duration=round(duration / 1000 / 60, 2)
+| table duration</query>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="showTrendIndicator">1</option>
+        <option name="trellis.enabled">0</option>
+        <option name="trendDisplayMode">absolute</option>
+        <option name="unit">minutes</option>
+        <option name="useColors">0</option>
+      </single>
+    </panel>
+    <panel>
+      <title>Stages Executed / Total</title>
+      <single>
+        <search base="stagesBaseSearch">
+          <query>| stats count(eval(isnotnull(stage_id))) as stages_executed, values(stages_total) as stages_total
+| eval stages_total = if(isnull(stages_total), 0, stages_total)
+| eval stages = stages_executed . " / " . stages_total
+| table stages</query>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="showTrendIndicator">1</option>
+        <option name="trellis.enabled">0</option>
+        <option name="trendDisplayMode">absolute</option>
+        <option name="useColors">0</option>
+      </single>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Stage Duration</title>
+      <chart>
+        <search base="stagesBaseSearch">
+          <query>| where isnotnull(stage_id)
+| eval Duration = stage_duration / 1000 / 60
+| rename stage_num as Stage
+| table Stage Duration</query>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.overflowMode">ellipsisNone</option>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisTitleX.visibility">visible</option>
+        <option name="charting.axisTitleY.text">Duration (Minutes)</option>
+        <option name="charting.axisTitleY.visibility">visible</option>
+        <option name="charting.axisTitleY2.visibility">visible</option>
+        <option name="charting.axisX.abbreviation">none</option>
+        <option name="charting.axisX.scale">linear</option>
+        <option name="charting.axisY.abbreviation">none</option>
+        <option name="charting.axisY.scale">linear</option>
+        <option name="charting.axisY2.abbreviation">none</option>
+        <option name="charting.axisY2.enabled">0</option>
+        <option name="charting.axisY2.scale">inherit</option>
+        <option name="charting.chart">bar</option>
+        <option name="charting.chart.bubbleMaximumSize">50</option>
+        <option name="charting.chart.bubbleMinimumSize">10</option>
+        <option name="charting.chart.bubbleSizeBy">area</option>
+        <option name="charting.chart.nullValueMode">gaps</option>
+        <option name="charting.chart.showDataLabels">none</option>
+        <option name="charting.chart.sliceCollapsingThreshold">0.01</option>
+        <option name="charting.chart.stackMode">default</option>
+        <option name="charting.chart.style">shiny</option>
+        <option name="charting.drilldown">none</option>
+        <option name="charting.layout.splitSeries">0</option>
+        <option name="charting.layout.splitSeries.allowIndependentYRanges">0</option>
+        <option name="charting.legend.labelStyle.overflowMode">ellipsisMiddle</option>
+        <option name="charting.legend.mode">standard</option>
+        <option name="charting.legend.placement">none</option>
+        <option name="charting.lineWidth">2</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="trellis.enabled">0</option>
+        <option name="trellis.scales.shared">1</option>
+        <option name="trellis.size">medium</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Stages</title>
+      <table>
+        <search base="stagesBaseSearch">
+          <query>| where isnotnull(stage_id)
+| eval "stage_duration (m)" = round(stage_duration / 1000 / 60, 2)
+| table stage_num name "stage_duration (m)" stage_status truth_core truth_node</query>
+        </search>
+        <option name="count">20</option>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </table>
+    </panel>
+  </row>
+</form>

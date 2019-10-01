@@ -1,0 +1,302 @@
+<form>
+  <label>FT Run Inspector (BETA)</label>
+  <description>PIVT Version: 0.1.2.19.1 --- Last pull date: None</description>
+  <search id="filtersBaseSearch">
+    <query>| tstats values(jenkins.timestamp) as timestamp, values(jenkins.ci) as ci, values(jenkins.url) as url from datamodel=pivt_jenkins.jenkins where nodename=jenkins.aws_functional_tests by jenkins.instance, jenkins.job, jenkins.number
+| rename jenkins.* as *</query>
+  </search>
+  <search base="filtersBaseSearch">
+    <query>| search instance=$instance$ job=$job$ number=$number$
+| eval datetime = strftime(timestamp / 1000,  "%l:%M %p;%A, %b %d, %Y")
+| makemv delim=";" datetime
+| eval time = mvindex(datetime, 0)
+| eval date = mvindex(datetime, 1)</query>
+    <done>
+      <set token="job_timestamp">$result.timestamp$</set>
+      <set token="job_instance">$result.instance$</set>
+      <set token="job_ci">$result.ci$</set>
+      <set token="job_url">$result.url$</set>
+      <set token="time">$result.time$</set>
+      <set token="date">$result.date$</set>
+    </done>
+  </search>
+  <search>
+    <query>index=pivt_jenkins
+| sort -_time
+| head 1
+| eval job = mvindex(split(url, "/"), 4)
+| table instance job number</query>
+    <earliest>$click_earliest$</earliest>
+    <latest>$click_latest$</latest>
+    <done>
+      <condition match="isnotnull($result.number$)">
+        <set token="form.instance">$result.instance$</set>
+        <set token="form.job">$result.job$</set>
+        <set token="form.number">$result.number$</set>
+        <unset token="click_earliest"></unset>
+        <unset token="click_latest"></unset>
+      </condition>
+    </done>
+  </search>
+  <search id="panelsBaseSearch">
+    <query>index=pivt_jenkins url=$job_url$
+| table _time instance ci release derived_cause number result duration</query>
+  </search>
+  <search id="scenariosBaseSearch">
+    <query>index=pivt_jenkins_ft job_timestamp=$job_timestamp$ job_instance=$job_instance$ job_ci=$job_ci$ report_name!=*integrity*
+| rename job_* as *
+| eval feature = if(like(source, "%features%"), 1, 0)
+| eval feature_id = if(feature == 1, id, feature_id)
+| eval feature_name = if(feature == 1, name, null())
+| eval feature_result = if(feature == 1, result, null())
+| eval id = if(feature == 1, null(), id)
+| eval name = if(feature == 1, null(), name)
+| eval result = if(feature == 1, null(), result)
+| eval tags = split(replace(tags, ",", ""), ":")
+| eval core = if(feature == 1, null(), if(isnotnull(tags) and isnotnull(mvfind(tags, "core")), "yes", "no"))
+| eval planned_regression = if(feature == 1, null(), if(isnotnull(tags) and isnotnull(mvfind(tags, "planned_regression")), "yes", "no"))
+| eval result = if(result == "skipped", "failed", result)
+| eval scen = id . "|" . name . "|" . result . "|" . core . "|" . planned_regression
+| fields feature_id feature_name feature_result scen
+| fields - _raw, _time
+| stats values(*) as * by feature_id
+| mvexpand scen
+| rex field=scen "(?&lt;id&gt;.+)\|(?&lt;name&gt;.+)\|(?&lt;result&gt;.+)\|(?&lt;core&gt;.+)\|(?&lt;planned_regression&gt;.+)"</query>
+  </search>
+  <search id="scenariosStats" base="scenariosBaseSearch">
+    <query>| stats count as run, count(eval(result == "passed")) as passed, count(eval(core == "yes")) as core_run, count(eval(core == "yes" AND result == "passed")) as core_passed, count(eval(planned_regression == "yes")) as planned_regression_run, count(eval(planned_regression == "yes" AND result == "passed")) as planned_regression_passed</query>
+  </search>
+  <fieldset submitButton="false" autoRun="true">
+    <input type="dropdown" token="instance" searchWhenChanged="true">
+      <label>Instance</label>
+      <search base="filtersBaseSearch">
+        <query>| stats count by instance</query>
+      </search>
+      <fieldForLabel>instance</fieldForLabel>
+      <fieldForValue>instance</fieldForValue>
+    </input>
+    <input type="dropdown" token="job" searchWhenChanged="true">
+      <label>Job</label>
+      <search base="filtersBaseSearch">
+        <query>| search instance=$instance$ | stats count by job</query>
+      </search>
+      <fieldForLabel>job</fieldForLabel>
+      <fieldForValue>job</fieldForValue>
+    </input>
+    <input type="dropdown" token="number" searchWhenChanged="true">
+      <label>Number</label>
+      <search base="filtersBaseSearch">
+        <query>| search instance=$instance$ job=$job$ | stats count by number | sort -number</query>
+      </search>
+      <fieldForLabel>number</fieldForLabel>
+      <fieldForValue>number</fieldForValue>
+    </input>
+  </fieldset>
+  <row>
+    <panel>
+      <title>Time</title>
+      <html>
+        <center>
+          <p>
+            <font size="6">
+              <b>$time$</b>
+            </font>
+          </p>
+          <p>
+            <font size="6">
+              <b>$date$</b>
+            </font>
+          </p>
+        </center>
+      </html>
+    </panel>
+    <panel>
+      <title>Result</title>
+      <single>
+        <search base="panelsBaseSearch">
+          <query>| table result</query>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="showTrendIndicator">1</option>
+        <option name="trendDisplayMode">absolute</option>
+        <option name="useColors">0</option>
+      </single>
+    </panel>
+    <panel>
+      <title>Duration</title>
+      <single>
+        <search base="panelsBaseSearch">
+          <query>| eval duration=round(duration / 1000 / 60, 2)
+| table duration</query>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="showTrendIndicator">1</option>
+        <option name="trellis.enabled">0</option>
+        <option name="trendDisplayMode">absolute</option>
+        <option name="unit">minutes</option>
+        <option name="useColors">0</option>
+      </single>
+    </panel>
+    <panel>
+      <title>Cause</title>
+      <single>
+        <search base="panelsBaseSearch">
+          <query>| table derived_cause</query>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="showTrendIndicator">1</option>
+        <option name="trellis.enabled">0</option>
+        <option name="trendDisplayMode">absolute</option>
+        <option name="useColors">0</option>
+      </single>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Tests Run (Passed / Total)</title>
+      <single>
+        <search base="scenariosStats">
+          <query>| eval val = passed . " / " . run . " (" . round(passed / run * 100, 2) . "%)"
+| table val</query>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="showTrendIndicator">1</option>
+        <option name="trellis.enabled">0</option>
+        <option name="trendDisplayMode">absolute</option>
+        <option name="useColors">0</option>
+      </single>
+    </panel>
+    <panel>
+      <title>Core Tests Run (Passed / Total)</title>
+      <single>
+        <search base="scenariosStats">
+          <query>| eval val = core_passed . " / " . core_run . " (" . round(core_passed / core_run * 100, 2) . "%)"
+| table val</query>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="showTrendIndicator">1</option>
+        <option name="trellis.enabled">0</option>
+        <option name="trendDisplayMode">absolute</option>
+        <option name="useColors">0</option>
+      </single>
+    </panel>
+    <panel>
+      <title>Planned Regression Tests Run (Passed / Total)</title>
+      <single>
+        <search base="scenariosStats">
+          <query>| eval val = planned_regression_passed . " / " . planned_regression_run . " (" . round(planned_regression_passed / planned_regression_run * 100, 2) . "%)"
+| table val</query>
+        </search>
+        <option name="colorMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="rangeColors">["0x000","0xd93f3c"]</option>
+        <option name="rangeValues">[0]</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="showTrendIndicator">1</option>
+        <option name="trellis.enabled">0</option>
+        <option name="trendDisplayMode">absolute</option>
+        <option name="useColors">1</option>
+      </single>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Features</title>
+      <table>
+        <search base="scenariosBaseSearch">
+          <query>| stats values(feature_result) as Result, count as scenarios_total, count(eval(result == "passed")) as scenarios_passed by feature_name
+| eval "Scenarios Failed" = scenarios_total - scenarios_passed
+| rename feature_name as Feature, scenarios_total as "Total Scenarios", scenarios_passed as "Scenarios Passed"
+| table Feature "Scenarios Passed" "Scenarios Failed" "Total Scenarios" Result
+| sort Feature
+| addcoltotals</query>
+        </search>
+        <option name="count">20</option>
+        <option name="drilldown">cell</option>
+        <option name="refresh.display">progressbar</option>
+        <format type="color" field="Result">
+          <colorPalette type="map">{"failed":#D93F3C,"passed":#65A637,"skipped":#6DB7C6}</colorPalette>
+        </format>
+        <drilldown>
+          <set token="form.feature">$row.Feature$</set>
+        </drilldown>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Scenarios</title>
+      <input type="dropdown" token="feature" searchWhenChanged="true">
+        <label>Feature</label>
+        <search base="scenariosBaseSearch">
+          <query>| stats count by feature_name</query>
+        </search>
+        <choice value="*">All</choice>
+        <initialValue>*</initialValue>
+        <fieldForLabel>feature_name</fieldForLabel>
+        <fieldForValue>feature_name</fieldForValue>
+        <default>*</default>
+      </input>
+      <input type="checkbox" token="show_only_failed" searchWhenChanged="true">
+        <label></label>
+        <choice value="yes">Failed only</choice>
+        <change>
+          <condition match="isnull($show_only_failed$)">
+            <set token="show_only_failed">no</set>
+          </condition>
+        </change>
+      </input>
+      <input type="checkbox" token="show_only_core" searchWhenChanged="true">
+        <label></label>
+        <choice value="yes">Core only</choice>
+        <change>
+          <condition match="isnull($show_only_core$)">
+            <set token="show_only_core">no</set>
+          </condition>
+        </change>
+      </input>
+      <input type="checkbox" token="show_only_planned_regression" searchWhenChanged="true">
+        <label></label>
+        <choice value="yes">Planned regression only</choice>
+        <change>
+          <condition match="isnull($show_only_planned_regression$)">
+            <set token="show_only_planned_regression">no</set>
+          </condition>
+        </change>
+      </input>
+      <table>
+        <search base="scenariosBaseSearch">
+          <query>| search feature_name="$feature$"
+| eval id_split = split(id, ";")
+| eval example_table_name = mvindex(id_split, 2)
+| eval example_num = tonumber(mvindex(id_split, 3)) - 1
+| eval Scenario = if(isnotnull(example_table_name), name . " (" . example_table_name . ")", name)
+| eval Scenario = if(isnotnull(example_num), Scenario . " #" . example_num, Scenario)
+| where if("$show_only_failed$" == "yes", result == "failed", true())
+| where if("$show_only_core$" == "yes", core == "yes", true())
+| where if("$show_only_planned_regression$" == "yes", planned_regression == "yes", true())
+| rename feature_name as Feature, result as Result, core as Core, planned_regression as "Planned Regression"
+| fields Feature Scenario Result Core "Planned Regression"
+| sort Scenario</query>
+        </search>
+        <option name="count">20</option>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+        <format type="color" field="Result">
+          <colorPalette type="map">{"failed":#D93F3C,"passed":#65A637,"skipped":#6DB7C6}</colorPalette>
+        </format>
+        <format type="color" field="Core">
+          <colorPalette type="map">{"yes":#6DB7C6,"no":#F7BC38}</colorPalette>
+        </format>
+        <format type="color" field="Planned Regression">
+          <colorPalette type="map">{"yes":#3863A0,"no":#A2CC3E}</colorPalette>
+        </format>
+      </table>
+    </panel>
+  </row>
+</form>

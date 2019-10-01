@@ -1,0 +1,128 @@
+<form>
+  <label>Release Closure Review (RCR) (BETA)</label>
+  <description>PIVT Version: 0.1.2.19.1 --- Last pull date: None</description>
+  <search id="baseSearch">
+    <query>| savedsearch "PIVT Jenkins FT Scenarios" instance=Production tag=all nominal=all
+| eval ft_pass = scen_passed / scen_count
+| eval ft_core_pass = core_passed / core_tests
+| fields ci PIPELINE_URL ft_pass ft_core_pass
+| append
+    [search index=pivt_jenkins instance=Production stage=UnitTest
+    | eval ut_pass = passCount / (passCount + failCount)
+    | fields ci PIPELINE_URL ut_pass]
+| append
+    [search index=pivt_jenkins instance=Production stage=Build
+    | eval build_passed = if(result == "SUCCESS", "yes", "no")
+    | fields ci PIPELINE_URL build_passed]
+| stats values(build_passed) as build_passed, values(ut_pass) as ut_pass, values(ft_pass) as ft_pass, values(ft_core_pass) as ft_core_pass by ci, PIPELINE_URL
+| where isnotnull(ut_pass) and isnotnull(ft_pass)
+| eval build = ci . "," . build_passed . "," . ut_pass . "," . ft_pass . "," . ft_core_pass
+| fields PIPELINE_URL build
+| append
+    [search index=pivt_jenkins stage=pipeline instance=production
+    | rename pipeline_properties.%%ci33%%_BUILD_TYPE as %%ci33%%_BUILD_TYPE, pipeline_properties.%%ci33%%_BUILD_VERSION as %%ci33%%_BUILD_VERSION, pipeline_properties.%%ci21%%_BUILD_VERSION as %%ci21%%_BUILD_VERSION, pipeline_properties.%%ci22%%_BUILD_VERSION as %%ci22%%_BUILD_VERSION, pipeline_properties.BASE_SNAPSHOT_NAME as BASE_SNAPSHOT_NAME
+    | fillnull value="-" %%ci33%%_BUILD_TYPE, %%ci33%%_BUILD_VERSION, %%ci21%%_BUILD_VERSION, %%ci22%%_BUILD_VERSION, BASE_SNAPSHOT_NAME
+    | eval %%ci33%%_BUILD_TYPE = if(%%ci33%%_BUILD_TYPE == "", "-", %%ci33%%_BUILD_TYPE)
+    | eval %%ci33%%_BUILD_VERSION = if(%%ci33%%_BUILD_VERSION == "", "-", %%ci33%%_BUILD_VERSION)
+    | eval %%ci21%%_BUILD_VERSION = if(%%ci21%%_BUILD_VERSION == "", "-", %%ci21%%_BUILD_VERSION)
+    | eval %%ci22%%_BUILD_VERSION = case(ci == "%%ci9%%" AND BASE_SNAPSHOT_NAME != "", BASE_SNAPSHOT_NAME, %%ci22%%_BUILD_VERSION == "", "-", true(), %%ci22%%_BUILD_VERSION)
+    | rename url as PIPELINE_URL
+    | eval reference = if(AWS_VIC=="blank" AND Build=="true" AND Deploy=="true" AND Functional_Test=="true" AND CLEARCASE_VIEW=="blank", "true", "false")
+    | fields _time ci number derived_cause result PIPELINE_URL reference %%ci33%%_BUILD_TYPE %%ci33%%_BUILD_VERSION %%ci21%%_BUILD_VERSION %%ci22%%_BUILD_VERSION]
+| stats values(_time) as _time, values(*) as * by PIPELINE_URL
+| where isnotnull(build) and isnotnull(_time)
+| search `nominal($$nominal$$)`
+| mvexpand build
+| eval build = split(build, ",")
+| eval ut_ft_ci = mvindex(build, 0), build_passed = mvindex(build, 1), ut_pass = round(tonumber(mvindex(build, 2), 10) * 100, 2), ft_pass = round(tonumber(mvindex(build, 3), 10) * 100, 2), ft_core_pass = round(tonumber(mvindex(build, 4), 10) * 100, 2)
+| where ci == ut_ft_ci
+| rename PIPELINE_URL as URL
+| fields _time ci number URL derived_cause reference result %%ci33%%_BUILD_TYPE %%ci33%%_BUILD_VERSION %%ci21%%_BUILD_VERSION %%ci22%%_BUILD_VERSION build_passed ut_pass ft_pass ft_core_pass element</query>
+    <earliest>$timeWindow.earliest$</earliest>
+    <latest>$timeWindow.latest$</latest>
+  </search>
+  <search id="joinedBaseSearch" base="baseSearch">
+    <query>| lookup pipeline_element_lookup _key as URL output element</query>
+  </search>
+  <search id="filteredBaseSearch" base="joinedBaseSearch">
+    <query>| search $ci$ $cause$
+| where if("$element$" == "*", true(), element == "$element$")
+| sort -_time</query>
+  </search>
+  <search id="filtersSearch" base="joinedBaseSearch">
+    <query>| fillnull value="-" element | stats count by ci, derived_cause, element</query>
+  </search>
+  <fieldset submitButton="false"></fieldset>
+  <row>
+    <panel>
+      <title>Pipeline Runs</title>
+      <input type="multiselect" token="ci" id="multiinput1">
+        <label>CI</label>
+        <choice value="*">All</choice>
+        <default>*</default>
+        <initialValue>*</initialValue>
+        <prefix>(</prefix>
+        <suffix>)</suffix>
+        <fieldForLabel>ci</fieldForLabel>
+        <fieldForValue>ci</fieldForValue>
+        <search base="filtersSearch">
+          <query>| search $cause$ | where if("$element$" == "*", true(), element == "$element$") | stats count by ci</query>
+        </search>
+        <valuePrefix>ci="</valuePrefix>
+        <valueSuffix>"</valueSuffix>
+        <delimiter> OR </delimiter>
+      </input>
+      <input type="multiselect" token="cause" searchWhenChanged="true" id="multiinput2">
+        <label>Cause</label>
+        <choice value="*">All</choice>
+        <default>*</default>
+        <initialValue>*</initialValue>
+        <prefix>(</prefix>
+        <suffix>)</suffix>
+        <fieldForLabel>derived_cause</fieldForLabel>
+        <fieldForValue>derived_cause</fieldForValue>
+        <search base="filtersSearch">
+          <query>| search $ci$ | where if("$element$" == "*", true(), element == "$element$") | stats count by derived_cause</query>
+        </search>
+        <valuePrefix>derived_cause="</valuePrefix>
+        <valueSuffix>"</valueSuffix>
+        <delimiter> OR </delimiter>
+      </input>
+      <input type="dropdown" token="element" searchWhenChanged="true" id="multiinput3">
+        <label>Element</label>
+        <choice value="*">All</choice>
+        <default>*</default>
+        <initialValue>*</initialValue>
+        <fieldForLabel>element</fieldForLabel>
+        <fieldForValue>element</fieldForValue>
+        <search base="filtersSearch">
+          <query>| search $ci$ $cause$ | eval element = if(element == "-", null(), element) | stats count by element</query>
+        </search>
+      </input>
+      <input type="time" token="timeWindow" searchWhenChanged="true">
+        <label></label>
+        <default>
+          <earliest>-7d@h</earliest>
+          <latest>now</latest>
+        </default>
+      </input>
+      <table>
+        <search base="filteredBaseSearch">
+          <query>| fields - job</query>
+        </search>
+        <option name="count">10</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">cell</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+        <drilldown>
+          <eval token="job_name">mvindex(split($row.URL$, "/"), 4)</eval>
+          <link target="_blank">/app/pivt/pipeline_run_inspector?form.instance=Production&amp;form.job=$job_name$&amp;form.number=$row.number$</link>
+        </drilldown>
+      </table>
+    </panel>
+  </row>
+</form>

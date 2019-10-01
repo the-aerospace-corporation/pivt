@@ -1,0 +1,27 @@
+CHANGELOG.md                            .
+ERRATA.md                               .
+LICENSE                                 .
+README.md                               .
+
+config.in                               .
+configure.sh                            .
+install.sh                              .
+
+cfg/*                                   dist/etc
+
+pivt/scripts/collect.sh                 dist/bin
+pivt/scripts/cq_pivt.sh                 dist/bin
+pivt/scripts/export_cq.pl               dist/bin
+pivt/scripts/jenkins_pivt.sh            dist/bin
+pivt/scripts/pivt-drs.qry               dist/bin
+pivt/scripts/process.sh                 dist/bin
+pivt/scripts/vic_status_pivt.sh         dist/bin
+
+pivt/collect.py                         dist/bin/pivt
+pivt/conf_manager.py                    dist/bin/pivt
+pivt/export_jenkins.py                  dist/bin/pivt
+pivt/export_vic_status.py               dist/bin/pivt
+pivt/process.py                         dist/bin/pivt
+pivt/util.py                            dist/bin/pivt
+
+pivt-splunk-app.tar.gz                  dist

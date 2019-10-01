@@ -1,0 +1,192 @@
+<form>
+  <label>Pipeline Availability (BETA)</label>
+  <description>PIVT Version: 0.1.2.19.1 --- Last pull date: None</description>
+  <search id="baseSearch">
+    <query>index=pivt_jenkins instance=Production stage!=Pipeline earliest=0
+| eval build = _time . "," . ci . "," . ss . "," . stage . "," . release . "," . number . "," . duration . "," . result
+| fields PIPELINE_URL build
+| `combine_with_pipelines`
+| search `nominal_build`
+| mvexpand build
+| where isnotnull(build)
+| eval build = split(build, ",")
+| eval _time = mvindex(build, 0), ci = mvindex(build, 1), ss = mvindex(build, 2), stage = mvindex(build, 3), release = mvindex(build, 4), number = mvindex(build, 5), duration = mvindex(build, 6), result = mvindex(build, 7)
+| sort -_time
+| ttr ttrfield=ttr resultfield=result passvalue=SUCCESS lookbeyondboundary=True ci stage release
+| fields _time ss ci stage number release result duration ttr
+| eval ttr=ttr/60/60</query>
+    <earliest>$timeWindow.earliest$</earliest>
+    <latest>$timeWindow.latest$</latest>
+  </search>
+  <search id="filtersSearch" base="baseSearch">
+    <query>| stats count by ss, ci, stage, release</query>
+  </search>
+  <search id="panelsBaseSearch" base="baseSearch">
+    <query>| search $ss$ $ci$ $stage$ $release$</query>
+  </search>
+  <fieldset submitButton="false" autoRun="true">
+    <input type="multiselect" token="ss" searchWhenChanged="true" id="multiinput1">
+      <label>SS</label>
+      <choice value="*">All</choice>
+      <default>*</default>
+      <fieldForLabel>ss</fieldForLabel>
+      <fieldForValue>ss</fieldForValue>
+      <search base="filtersSearch">
+        <query>| search $ci$ $stage$ $release$ | stats count by ss</query>
+      </search>
+      <initialValue>*</initialValue>
+      <prefix>(</prefix>
+      <suffix>)</suffix>
+      <valuePrefix>ss="</valuePrefix>
+      <valueSuffix>"</valueSuffix>
+      <delimiter> OR </delimiter>
+    </input>
+    <input type="multiselect" token="ci" searchWhenChanged="true" id="multiinput2">
+      <label>CI</label>
+      <choice value="*">All</choice>
+      <default>*</default>
+      <initialValue>*</initialValue>
+      <prefix>(</prefix>
+      <suffix>)</suffix>
+      <fieldForLabel>ci</fieldForLabel>
+      <fieldForValue>ci</fieldForValue>
+      <search base="filtersSearch">
+        <query>| search $ss$ $stage$ $release$ | stats count by ci</query>
+      </search>
+      <change>
+        <set token="ciLabel">$label$</set>
+      </change>
+      <valuePrefix>ci="</valuePrefix>
+      <valueSuffix>"</valueSuffix>
+      <delimiter> OR </delimiter>
+    </input>
+    <input type="multiselect" token="stage" searchWhenChanged="true" id="multiinput3">
+      <label>Stage</label>
+      <fieldForLabel>stage</fieldForLabel>
+      <fieldForValue>stage</fieldForValue>
+      <search base="filtersSearch">
+        <query>| search $ss$ $ci$ $release$ | stats count by stage</query>
+      </search>
+      <choice value="*">All</choice>
+      <default>*</default>
+      <initialValue>*</initialValue>
+      <prefix>(</prefix>
+      <suffix>)</suffix>
+      <valuePrefix>stage="</valuePrefix>
+      <valueSuffix>"</valueSuffix>
+      <delimiter> OR </delimiter>
+    </input>
+    <input type="multiselect" token="release" searchWhenChanged="true" id="multiinput4">
+      <label>Release</label>
+      <choice value="*">All</choice>
+      <default>*</default>
+      <initialValue>*</initialValue>
+      <prefix>(</prefix>
+      <suffix>)</suffix>
+      <fieldForLabel>release</fieldForLabel>
+      <fieldForValue>release</fieldForValue>
+      <search base="filtersSearch">
+        <query>| search $ss$ $ci$ $stage$ | stats count by release</query>
+      </search>
+      <valuePrefix>release="</valuePrefix>
+      <valueSuffix>"</valueSuffix>
+      <delimiter> OR </delimiter>
+    </input>
+    <input type="time" token="timeWindow" searchWhenChanged="true">
+      <label></label>
+      <default>
+        <earliest>-7d@d</earliest>
+        <latest>now</latest>
+      </default>
+    </input>
+  </fieldset>
+  <row>
+    <panel depends="$none$">
+      <table>
+        <search>
+          <query>| gentimes start=-1
+| addinfo
+| eval range = info_max_time - info_min_time
+| eval span_line = "span=" . case(range &lt; 5*24*3600+3600, "6h", range &lt; 21*24*3600+3600, "1d", range &lt; 3*31*24*3600+3600, "1w", 1=1, "1month")
+| eval span_col = "span=" . case(range &lt; 24*3600+3600, "1h", range &lt; 7*24*3600+3600, "1d", range &lt; 2*31*24*3600+3600, "1d", 1=1, "1w")
+| fields span_line span_col</query>
+          <earliest>$timeWindow.earliest$</earliest>
+          <latest>$timeWindow.latest$</latest>
+          <finalized>
+            <set token="span_line">$result.span_line$</set>
+            <set token="span_col">$result.span_col$</set>
+          </finalized>
+        </search>
+        <option name="count">10</option>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>MTTR (Mean Time to Repair)</title>
+      <chart>
+        <search base="panelsBaseSearch">
+          <query>| eval ttr=ttr/24
+| chart avg(ttr) as mttr by ci, stage</query>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.overflowMode">ellipsisNone</option>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.axisTitleY.text">Days</option>
+        <option name="charting.axisTitleY.visibility">visible</option>
+        <option name="charting.axisTitleY2.visibility">visible</option>
+        <option name="charting.axisX.abbreviation">none</option>
+        <option name="charting.axisX.scale">linear</option>
+        <option name="charting.axisY.abbreviation">none</option>
+        <option name="charting.axisY.scale">linear</option>
+        <option name="charting.axisY2.abbreviation">none</option>
+        <option name="charting.axisY2.enabled">0</option>
+        <option name="charting.axisY2.scale">inherit</option>
+        <option name="charting.chart">column</option>
+        <option name="charting.chart.bubbleMaximumSize">50</option>
+        <option name="charting.chart.bubbleMinimumSize">10</option>
+        <option name="charting.chart.bubbleSizeBy">area</option>
+        <option name="charting.chart.nullValueMode">gaps</option>
+        <option name="charting.chart.showDataLabels">none</option>
+        <option name="charting.chart.sliceCollapsingThreshold">0.01</option>
+        <option name="charting.chart.stackMode">default</option>
+        <option name="charting.chart.style">shiny</option>
+        <option name="charting.drilldown">none</option>
+        <option name="charting.layout.splitSeries">0</option>
+        <option name="charting.layout.splitSeries.allowIndependentYRanges">0</option>
+        <option name="charting.legend.labelStyle.overflowMode">ellipsisMiddle</option>
+        <option name="charting.legend.mode">standard</option>
+        <option name="charting.legend.placement">right</option>
+        <option name="charting.lineWidth">2</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="trellis.enabled">0</option>
+        <option name="trellis.scales.shared">1</option>
+        <option name="trellis.size">medium</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Time To Repair (TTR)</title>
+      <chart>
+        <search base="panelsBaseSearch">
+          <query>| timechart $span_line$ avg(ttr) as ttr
+| where ttr &gt; 0
+| `lineartrend(_time, ttr)`
+| timechart $span_line$ values(ttr) as TTR, values(newY) as Trend
+| table _time TTR Trend</query>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.axisTitleY.text">TTR (hours)</option>
+        <option name="charting.axisY.minimumNumber">0</option>
+        <option name="charting.chart">line</option>
+        <option name="charting.chart.nullValueMode">connect</option>
+        <option name="charting.drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
+    </panel>
+  </row>
+</form>

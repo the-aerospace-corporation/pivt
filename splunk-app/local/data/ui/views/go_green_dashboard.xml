@@ -1,0 +1,408 @@
+<form>
+  <label>Go Green Dashboard</label>
+  <description>PIVT Version: 0.1.2.19.1 --- Last pull date: None</description>
+  <search id="filtersSearch">
+    <query>| savedsearch "PIVT Jenkins FT Scenarios" instance=Production tag=$tag$ nominal=$nominal$
+| search `pipeline($pipeline$)`
+| fillnull value="-" tag
+| stats count by tag, ci, derived_cause, release, %%ci33%%_BUILD_TYPE, %%ci33%%_BUILD_VERSION, %%ci21%%_BUILD_VERSION, %%ci22%%_BUILD_VERSION</query>
+    <earliest>$timeWindow.earliest$</earliest>
+    <latest>$timeWindow.latest$</latest>
+  </search>
+  <search id="scenBaseSearch">
+    <query>| savedsearch "PIVT Jenkins FT Scenarios" instance=Production tag=$tag$ nominal=$nominal$
+| search $ci$ $release$ $cause$ $ins_build$ $ins_version$ $dms_version$ $eis_version$ `pipeline($pipeline$)` (result=SUCCESS OR result=UNSTABLE)</query>
+    <earliest>$timeWindow.earliest$</earliest>
+    <latest>$timeWindow.latest$</latest>
+  </search>
+  <fieldset submitButton="false"></fieldset>
+  <row>
+    <panel>
+      <title>Production Jenkins Instance - Latest Integration Master Streams</title>
+      <input type="multiselect" token="ci" searchWhenChanged="true" id="multiinput1">
+        <label>CI</label>
+        <choice value="*">All</choice>
+        <default>*</default>
+        <initialValue>*</initialValue>
+        <fieldForLabel>ci</fieldForLabel>
+        <fieldForValue>ci</fieldForValue>
+        <search base="filtersSearch">
+          <query>| search $cause$ $release$ $ins_build$ $ins_version$ $dms_version$ $eis_version$
+  | stats count by ci</query>
+        </search>
+        <prefix>(</prefix>
+        <suffix>)</suffix>
+        <valuePrefix>ci="</valuePrefix>
+        <valueSuffix>"</valueSuffix>
+        <delimiter> OR </delimiter>
+      </input>
+      <input type="multiselect" token="cause" searchWhenChanged="true" id="multiinput2">
+        <label>Cause</label>
+        <choice value="*">All</choice>
+        <fieldForLabel>derived_cause</fieldForLabel>
+        <fieldForValue>derived_cause</fieldForValue>
+        <search base="filtersSearch">
+          <query>| search $ci$ $release$ $ins_build$ $ins_version$ $dms_version$ $eis_version$
+  | stats count by derived_cause</query>
+        </search>
+        <default>*</default>
+        <initialValue>*</initialValue>
+        <prefix>(</prefix>
+        <suffix>)</suffix>
+        <valuePrefix>derived_cause="</valuePrefix>
+        <valueSuffix>"</valueSuffix>
+        <delimiter> OR </delimiter>
+      </input>
+      <input type="multiselect" token="release" id="multiinput3" searchWhenChanged="true">
+        <label>Release</label>
+        <choice value="*">All</choice>
+        <default>*</default>
+        <initialValue>*</initialValue>
+        <fieldForLabel>release</fieldForLabel>
+        <fieldForValue>release</fieldForValue>
+        <search base="filtersSearch">
+          <query>| search $cause$ $ci$ $ins_build$ $ins_version$ $dms_version$ $eis_version$
+  | stats count by release</query>
+        </search>
+        <prefix>(</prefix>
+        <suffix>)</suffix>
+        <valuePrefix>release="</valuePrefix>
+        <valueSuffix>"</valueSuffix>
+        <delimiter> OR </delimiter>
+      </input>
+      <input type="dropdown" token="pipeline" searchWhenChanged="true">
+        <label>Pipeline</label>
+        <choice value="all">All</choice>
+        <choice value="standard">Blob</choice>
+        <choice value="p-release">P-Release</choice>
+        <default>all</default>
+        <initialValue>all</initialValue>
+      </input>
+      <input type="dropdown" token="nominal">
+        <label>Reference Run</label>
+        <choice value="all">All</choice>
+        <choice value="yes">Yes</choice>
+        <choice value="no">No</choice>
+        <default>yes</default>
+        <initialValue>yes</initialValue>
+      </input>
+      <input type="dropdown" token="tag" searchWhenChanged="true">
+        <label>Tag</label>
+        <choice value="all">All</choice>
+        <choice value="core">Core</choice>
+        <choice value="notcore">Not Core</choice>
+        <default>core</default>
+        <initialValue>core</initialValue>
+      </input>
+      <input type="multiselect" token="ins_build" id="multiinput4" searchWhenChanged="true">
+        <label>%%ci33%% Build</label>
+        <choice value="*">All</choice>
+        <default>*</default>
+        <initialValue>*</initialValue>
+        <fieldForLabel>%%ci33%%_BUILD_TYPE</fieldForLabel>
+        <fieldForValue>%%ci33%%_BUILD_TYPE</fieldForValue>
+        <search base="filtersSearch">
+          <query>| search $cause$ $ci$ $release$ $ins_version$ $dms_version$ $eis_version$
+  | stats count by %%ci33%%_BUILD_TYPE</query>
+        </search>
+        <prefix>(</prefix>
+        <suffix>)</suffix>
+        <valuePrefix>%%ci33%%_BUILD_TYPE="</valuePrefix>
+        <valueSuffix>"</valueSuffix>
+        <delimiter> OR </delimiter>
+      </input>
+      <input type="multiselect" token="ins_version" id="multiinput5" searchWhenChanged="true">
+        <label>%%ci33%% Version</label>
+        <choice value="*">All</choice>
+        <default>*</default>
+        <initialValue>*</initialValue>
+        <fieldForLabel>%%ci33%%_BUILD_VERSION</fieldForLabel>
+        <fieldForValue>%%ci33%%_BUILD_VERSION</fieldForValue>
+        <search base="filtersSearch">
+          <query>| search $cause$ $ci$ $release$ $ins_build$ $dms_version$ $eis_version$
+| stats count by %%ci33%%_BUILD_VERSION</query>
+        </search>
+        <prefix>(</prefix>
+        <suffix>)</suffix>
+        <valuePrefix>%%ci33%%_BUILD_VERSION="</valuePrefix>
+        <valueSuffix>"</valueSuffix>
+        <delimiter> OR </delimiter>
+      </input>
+      <input type="multiselect" token="dms_version" id="multiinput6" searchWhenChanged="true">
+        <label>%%ci21%% Version</label>
+        <choice value="*">All</choice>
+        <default>*</default>
+        <initialValue>*</initialValue>
+        <fieldForLabel>%%ci21%%_BUILD_VERSION</fieldForLabel>
+        <fieldForValue>%%ci21%%_BUILD_VERSION</fieldForValue>
+        <search base="filtersSearch">
+          <query>| search $cause$ $ci$ $release$ $ins_build$ $ins_version$ $eis_version$
+| stats count by %%ci21%%_BUILD_VERSION</query>
+        </search>
+        <prefix>(</prefix>
+        <suffix>)</suffix>
+        <valuePrefix>%%ci21%%_BUILD_VERSION="</valuePrefix>
+        <valueSuffix>"</valueSuffix>
+        <delimiter> OR </delimiter>
+      </input>
+      <input type="multiselect" token="eis_version" id="multiinput7" searchWhenChanged="true">
+        <label>%%ci22%% Version</label>
+        <choice value="*">All</choice>
+        <default>*</default>
+        <initialValue>*</initialValue>
+        <fieldForLabel>%%ci22%%_BUILD_VERSION</fieldForLabel>
+        <fieldForValue>%%ci22%%_BUILD_VERSION</fieldForValue>
+        <search base="filtersSearch">
+          <query>| search $cause$ $ci$ $release$ $ins_build$ $ins_version$ $dms_version$
+| stats count by %%ci22%%_BUILD_VERSION</query>
+        </search>
+        <prefix>(</prefix>
+        <suffix>)</suffix>
+        <valuePrefix>%%ci22%%_BUILD_VERSION="</valuePrefix>
+        <valueSuffix>"</valueSuffix>
+        <delimiter> OR </delimiter>
+      </input>
+      <input type="time" token="timeWindow" searchWhenChanged="true">
+        <label></label>
+        <default>
+          <earliest>-7d@h</earliest>
+          <latest>now</latest>
+        </default>
+      </input>
+      <html>
+        <h4>Notes:</h4>
+        <ul>
+          <li>New "Reference Run" filter allows filtering out non-reference runs (or vice-versa). Note that, previously, this was set to "Yes" by default and the user could not change it.</li>
+          <li>Platform build and versioning filters (%%ci33%% Build, %%ci33%% Version, %%ci21%% Version, and %%ci22%% Version) are not to be used until complete data is provided by the automation team.</li>
+          <li>Blob pipeline produces blob images. P-Release pipeline produces Engineering Releases, Release Candidates, P-Releases, etc.</li>
+        </ul>
+        <h4>%%ci33%% build types as of May 8, 2019:</h4>
+        <ul>
+          <li><i>BLOB:</i> Completely manually created. Use of these images is deprecated. None of the types below use a BLOB image in their pedigree.</li>
+          <li><i>P-Release:</i> Created in an automated fashion via the Platform Pipelines. This is also used for output of the %%ci21%% and %%ci22%% pipeline builds which have only a P-Release Platform image in their pedigree.</li>
+          <li><i>Engineering-Release:</i> A release image that has in its pedigree a Platform image that has had manual changes made to it.</li>
+          <li><i>Hot Fix:</i> An Engineering-Release Platform image that has had changes made to fix immediate problems experienced by at least one CI.</li>
+          <li><i>Release-Candidate:</i> An Engineering-Release image that has had manual changes made, usually for product testing.</li>
+          <li><i>One-Off:</i> An image that does not fit any of the above categories. This may include an image created especially for one person to test something. However, the types listed here are currently inferred by the name of the image, so any image whose name does not conform to the naming conventions will come under this category.</li>
+        </ul>
+      </html>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>FT Runs by Result over Time</title>
+      <chart>
+        <search base="scenBaseSearch">
+          <query>| eval scen_total = scen_passed + scen_failed
+| where "$tag$"=="all" OR scen_total &gt; 0
+| eval result=if(scen_passed == scen_total AND scen_total &gt; 0, "Passed", "Failed")
+| timechart span=1d count by result</query>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.overflowMode">ellipsisNone</option>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.axisTitleY.text">Run Count</option>
+        <option name="charting.axisTitleY.visibility">visible</option>
+        <option name="charting.axisTitleY2.visibility">visible</option>
+        <option name="charting.axisX.abbreviation">none</option>
+        <option name="charting.axisX.scale">linear</option>
+        <option name="charting.axisY.abbreviation">none</option>
+        <option name="charting.axisY.scale">linear</option>
+        <option name="charting.axisY2.abbreviation">none</option>
+        <option name="charting.axisY2.enabled">0</option>
+        <option name="charting.axisY2.scale">inherit</option>
+        <option name="charting.chart">column</option>
+        <option name="charting.chart.bubbleMaximumSize">50</option>
+        <option name="charting.chart.bubbleMinimumSize">10</option>
+        <option name="charting.chart.bubbleSizeBy">area</option>
+        <option name="charting.chart.nullValueMode">gaps</option>
+        <option name="charting.chart.showDataLabels">none</option>
+        <option name="charting.chart.sliceCollapsingThreshold">0.01</option>
+        <option name="charting.chart.stackMode">stacked</option>
+        <option name="charting.chart.style">shiny</option>
+        <option name="charting.drilldown">none</option>
+        <option name="charting.fieldColors">{"Failed": 0xff0000, "Passed": 0x00cc00}</option>
+        <option name="charting.layout.splitSeries">0</option>
+        <option name="charting.layout.splitSeries.allowIndependentYRanges">0</option>
+        <option name="charting.legend.labelStyle.overflowMode">ellipsisMiddle</option>
+        <option name="charting.legend.mode">standard</option>
+        <option name="charting.legend.placement">right</option>
+        <option name="charting.lineWidth">2</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="trellis.enabled">0</option>
+        <option name="trellis.scales.shared">1</option>
+        <option name="trellis.size">medium</option>
+      </chart>
+      <html>
+        Number of pass/fail functional test runs each day. Pass means 100% success of all scenarios (filtered by the tag dropdown) within the functional test run. This graph does not distinguish between CIs.
+      </html>
+    </panel>
+    <panel>
+      <title>Successful FT Runs by CI over Time</title>
+      <chart>
+        <search base="scenBaseSearch">
+          <query>| eval scen_total = scen_passed + scen_failed
+| where scen_total == scen_passed AND scen_total &gt; 0
+| timechart span=1d limit=0 count by ci</query>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.overflowMode">ellipsisNone</option>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.axisTitleY.text">Successful Run Count</option>
+        <option name="charting.axisTitleY.visibility">visible</option>
+        <option name="charting.axisTitleY2.visibility">visible</option>
+        <option name="charting.axisX.abbreviation">none</option>
+        <option name="charting.axisX.scale">linear</option>
+        <option name="charting.axisY.abbreviation">none</option>
+        <option name="charting.axisY.scale">linear</option>
+        <option name="charting.axisY2.abbreviation">none</option>
+        <option name="charting.axisY2.enabled">0</option>
+        <option name="charting.axisY2.scale">inherit</option>
+        <option name="charting.chart">column</option>
+        <option name="charting.chart.bubbleMaximumSize">50</option>
+        <option name="charting.chart.bubbleMinimumSize">10</option>
+        <option name="charting.chart.bubbleSizeBy">area</option>
+        <option name="charting.chart.nullValueMode">gaps</option>
+        <option name="charting.chart.showDataLabels">none</option>
+        <option name="charting.chart.sliceCollapsingThreshold">0.01</option>
+        <option name="charting.chart.stackMode">stacked</option>
+        <option name="charting.chart.style">shiny</option>
+        <option name="charting.drilldown">none</option>
+        <option name="charting.fieldColors">{"Failed": 0xff0000, "Passed": 0x00cc00}</option>
+        <option name="charting.layout.splitSeries">0</option>
+        <option name="charting.layout.splitSeries.allowIndependentYRanges">0</option>
+        <option name="charting.legend.labelStyle.overflowMode">ellipsisMiddle</option>
+        <option name="charting.legend.mode">standard</option>
+        <option name="charting.legend.placement">right</option>
+        <option name="charting.lineWidth">2</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="trellis.enabled">0</option>
+        <option name="trellis.scales.shared">1</option>
+        <option name="trellis.size">medium</option>
+      </chart>
+      <html>
+        A day is considered green when there is at least one successful run for the CI.
+      </html>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>General Scenario Statistics</title>
+      <table>
+        <title>Averages calculated by run</title>
+        <search base="scenBaseSearch">
+          <query>| eval scen_total = scen_passed + scen_failed
+| where scen_total &gt; 0
+| stats avg(scen_total) as avgScenCount, sum(scen_passed) as scen_passed, sum(scen_total) as scen_total, max(scen_total) as maxScens, min(scen_total) as minScens, sum(planned_regression_failed) as total_planned_regression_failed, count(eval(planned_regression > 0)) as runs_with_planned_regression by ci
+| rename ci as CI
+| eval "Avg Passed Scenarios (%)" = scen_passed / scen_total * 100
+| eval "Avg Failed @planned_regression Scenarios" = round(total_planned_regression_failed / runs_with_planned_regression, 2)
+| fillnull value="--------" avgScenCount
+| fillnull value="--------" avgPassed
+| fillnull value="--------" avgFailed
+| fillnull value="--------" avgPassRate
+| fillnull "Avg Failed @planned_regression Scenarios"
+| rename avgScenCount as "Avg Number of Scenarios"
+| rename minScens as "Min Scenarios Ran"
+| rename maxScens as "Max Scenarios Ran"
+| table CI "Avg Number of Scenarios" "Avg Passed Scenarios (%)" "Min Scenarios Ran" "Max Scenarios Ran" "Avg Failed @planned_regression Scenarios"</query>
+        </search>
+        <option name="count">20</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+        <format type="number" field="Avg Number of Scenarios"></format>
+        <format type="number" field="Avg Failed Scenarios"></format>
+        <format type="number" field="Avg Passed Scenarios"></format>
+        <format type="number" field="Avg Passed Scenarios (%)">
+          <option name="unit">%</option>
+        </format>
+        <format type="number" field="MTTR (h)"></format>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>FT Scenario Count Per Run Over Time</title>
+      <chart>
+        <search base="scenBaseSearch">
+          <query>| rename scen_passed as Passed, scen_failed as Failed
+| append
+    [| makeresults
+    | addinfo
+    | eval _time = info_min_time
+    | timechart count]
+| table _time Passed Failed</query>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.axisTitleY.text">Scenario Count</option>
+        <option name="charting.axisTitleY2.visibility">visible</option>
+        <option name="charting.axisY.scale">linear</option>
+        <option name="charting.axisY2.abbreviation">none</option>
+        <option name="charting.axisY2.enabled">0</option>
+        <option name="charting.axisY2.scale">inherit</option>
+        <option name="charting.chart">column</option>
+        <option name="charting.chart.nullValueMode">connect</option>
+        <option name="charting.chart.showDataLabels">none</option>
+        <option name="charting.chart.stackMode">stacked</option>
+        <option name="charting.drilldown">all</option>
+        <option name="charting.fieldColors">{"Passed":0x00cc00, "Failed": 0xff0000}</option>
+        <option name="charting.layout.splitSeries">0</option>
+        <option name="charting.legend.placement">right</option>
+        <option name="refresh.display">progressbar</option>
+        <drilldown>
+          <link target="_blank">/app/pivt/ft_run_inspector?click_earliest=$earliest$&amp;click_latest=$latest$</link>
+        </drilldown>
+      </chart>
+      <html>
+        Number of pass/fail scenarios per run. Click on a bar to see a detailed view of scenarios and their results for that run.
+      </html>
+    </panel>
+    <panel>
+      <title>Runs by Platform Type</title>
+      <chart>
+        <search base="scenBaseSearch">
+          <query>| timechart span=1d count by %%ci33%%_BUILD_TYPE</query>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.overflowMode">ellipsisNone</option>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.axisTitleY.text">Runs</option>
+        <option name="charting.axisTitleY.visibility">visible</option>
+        <option name="charting.axisTitleY2.visibility">visible</option>
+        <option name="charting.axisX.abbreviation">none</option>
+        <option name="charting.axisX.scale">linear</option>
+        <option name="charting.axisY.abbreviation">none</option>
+        <option name="charting.axisY.scale">linear</option>
+        <option name="charting.axisY2.abbreviation">none</option>
+        <option name="charting.axisY2.enabled">0</option>
+        <option name="charting.axisY2.scale">inherit</option>
+        <option name="charting.chart">column</option>
+        <option name="charting.chart.bubbleMaximumSize">50</option>
+        <option name="charting.chart.bubbleMinimumSize">10</option>
+        <option name="charting.chart.bubbleSizeBy">area</option>
+        <option name="charting.chart.nullValueMode">gaps</option>
+        <option name="charting.chart.showDataLabels">none</option>
+        <option name="charting.chart.sliceCollapsingThreshold">0.01</option>
+        <option name="charting.chart.stackMode">stacked</option>
+        <option name="charting.chart.style">shiny</option>
+        <option name="charting.drilldown">none</option>
+        <option name="charting.layout.splitSeries">0</option>
+        <option name="charting.layout.splitSeries.allowIndependentYRanges">0</option>
+        <option name="charting.legend.labelStyle.overflowMode">ellipsisMiddle</option>
+        <option name="charting.legend.mode">standard</option>
+        <option name="charting.legend.placement">right</option>
+        <option name="charting.lineWidth">2</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="trellis.enabled">0</option>
+        <option name="trellis.scales.shared">1</option>
+        <option name="trellis.size">medium</option>
+      </chart>
+    </panel>
+  </row>
+</form>

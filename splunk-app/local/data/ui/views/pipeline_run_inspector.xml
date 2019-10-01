@@ -1,0 +1,250 @@
+<form script="pipeline_tag.js">
+  <label>Pipeline Run Inspector (BETA)</label>
+  <description>PIVT Version: 0.1.2.19.1 --- Last pull date: None</description>
+  <search id="filtersBaseSearch">
+    <query>| tstats values(jenkins.timestamp) as timestamp, values(jenkins.ci) as ci, values(jenkins.url) as url from datamodel=pivt_jenkins.jenkins where nodename=jenkins.pipeline by jenkins.instance, jenkins.job, jenkins.number
+| rename jenkins.* as *</query>
+  </search>
+  <search base="filtersBaseSearch">
+    <query>| search instance=$instance$ job=$job$ number=$number$
+| eval datetime = strftime(timestamp / 1000,  "%l:%M %p;%A, %b %d, %Y")
+| makemv delim=";" datetime
+| eval time = mvindex(datetime, 0)
+| eval date = mvindex(datetime, 1)</query>
+    <done>
+      <set token="job_timestamp">$result.timestamp$</set>
+      <set token="job_instance">$result.instance$</set>
+      <set token="job_ci">$result.ci$</set>
+      <set token="job_url">$result.url$</set>
+      <set token="time">$result.time$</set>
+      <set token="date">$result.date$</set>
+    </done>
+  </search>
+  <search id="panelsBaseSearch">
+    <query>index=pivt_jenkins stage=pipeline url=$job_url$
+| rename pipeline_properties.%%ci33%%_BUILD_TYPE as %%ci33%%_BUILD_TYPE, pipeline_properties.%%ci33%%_BUILD_VERSION as %%ci33%%_BUILD_VERSION, pipeline_properties.%%ci21%%_BUILD_VERSION as %%ci21%%_BUILD_VERSION, pipeline_properties.%%ci22%%_BUILD_VERSION as %%ci22%%_BUILD_VERSION, pipeline_properties.BASE_SNAPSHOT_NAME as BASE_SNAPSHOT_NAME
+| eval %%ci33%%_BUILD_TYPE = if(%%ci33%%_BUILD_TYPE == "", null(), %%ci33%%_BUILD_TYPE)
+| eval %%ci33%%_BUILD_VERSION = if(%%ci33%%_BUILD_VERSION == "", null(), %%ci33%%_BUILD_VERSION)
+| eval %%ci21%%_BUILD_VERSION = if(%%ci21%%_BUILD_VERSION == "", null(), %%ci21%%_BUILD_VERSION)
+| eval %%ci22%%_BUILD_VERSION = if(%%ci22%%_BUILD_VERSION == "", null(), %%ci22%%_BUILD_VERSION)
+| eval BASE_SNAPSHOT_NAME = if(BASE_SNAPSHOT_NAME == "", null(), BASE_SNAPSHOT_NAME)
+| fillnull value="None" %%ci33%%_BUILD_TYPE, %%ci33%%_BUILD_VERSION, %%ci21%%_BUILD_VERSION, %%ci22%%_BUILD_VERSION, BASE_SNAPSHOT_NAME
+| table _time url instance ci release derived_cause number result duration %%ci33%%_BUILD_TYPE %%ci33%%_BUILD_VERSION %%ci21%%_BUILD_VERSION %%ci22%%_BUILD_VERSION BASE_SNAPSHOT_NAME</query>
+    <done>
+      <set token="ins_type">$result.%%ci33%%_BUILD_TYPE$</set>
+      <set token="ins_version">$result.%%ci33%%_BUILD_VERSION$</set>
+      <set token="dms_version">$result.%%ci21%%_BUILD_VERSION$</set>
+      <set token="eis_version">$result.%%ci22%%_BUILD_VERSION$</set>
+      <set token="image">$result.BASE_SNAPSHOT_NAME$</set>
+    </done>
+  </search>
+  <search>
+    <query>index=pivt_jenkins stage=AWS_FunctionalTest PIPELINE_URL=$job_url$
+| eval job = mvindex(split(url, "/"), 4)
+| table timestamp number job</query>
+    <done>
+      <set token="ft_job_timestamp">$result.timestamp$</set>
+      <set token="ft_job_number">$result.number$</set>
+      <set token="ft_job_name">$result.job$</set>
+    </done>
+  </search>
+  <search id="ftBaseSearch">
+    <query>| tstats count as scen_count, sum(ft.passed) as scen_passed, sum(ft.core) as core_tests, sum(ft.core_passed) as core_passed, values(ft.reqs) as reqs, sum(ft.req_scen) as req_scens, sum(ft.planned_regression) as planned_regression, sum(ft.planned_regression_failed) as planned_regression_failed from datamodel=pivt_jenkins.ft where nodename=ft.scenarios, ft.report_name!=*integrity*, ft.job_instance=$job_instance$, ft.job_timestamp=$ft_job_timestamp$, ft.job_ci=$job_ci$, ft.job_number=$ft_job_number$
+| rename ft.job_timestamp as _time
+| eval _time = round(_time / 1000, 3)
+| rename ft.* as *
+| rename job_* as *
+| eval ft_pass = scen_passed / scen_count
+| eval ft_core_pass = core_passed / core_tests</query>
+    <earliest>$earliest$</earliest>
+    <latest>$latest$</latest>
+  </search>
+  <fieldset submitButton="false" autoRun="true">
+    <input type="dropdown" token="instance" searchWhenChanged="true">
+      <label>Instance</label>
+      <search base="filtersBaseSearch">
+        <query>| stats count by instance</query>
+      </search>
+      <fieldForLabel>instance</fieldForLabel>
+      <fieldForValue>instance</fieldForValue>
+    </input>
+    <input type="dropdown" token="job" searchWhenChanged="true">
+      <label>Job</label>
+      <search base="filtersBaseSearch">
+        <query>| search instance=$instance$ | stats count by job</query>
+      </search>
+      <fieldForLabel>job</fieldForLabel>
+      <fieldForValue>job</fieldForValue>
+    </input>
+    <input type="dropdown" token="number" searchWhenChanged="true">
+      <label>Number</label>
+      <search base="filtersBaseSearch">
+        <query>| search instance=$instance$ job=$job$ | stats count by number | sort -number</query>
+      </search>
+      <fieldForLabel>number</fieldForLabel>
+      <fieldForValue>number</fieldForValue>
+    </input>
+  </fieldset>
+  <row>
+    <panel>
+      <title>Time</title>
+      <html>
+        <center>
+          <p>
+            <font size="6">
+              <b>$time$</b>
+            </font>
+          </p>
+          <p>
+            <font size="6">
+              <b>$date$</b>
+            </font>
+          </p>
+        </center>
+      </html>
+    </panel>
+    <panel>
+      <title>Result</title>
+      <single>
+        <search base="panelsBaseSearch">
+          <query>| table result</query>
+        </search>
+        <option name="drilldown">none</option>
+      </single>
+    </panel>
+    <panel>
+      <title>Duration</title>
+      <single>
+        <search base="panelsBaseSearch">
+          <query>| eval duration = tostring(round(duration / 1000), "duration")
+| table duration</query>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </single>
+    </panel>
+    <panel>
+      <title>Cause</title>
+      <single>
+        <search base="panelsBaseSearch">
+          <query>| table derived_cause</query>
+        </search>
+        <option name="drilldown">none</option>
+      </single>
+    </panel>
+    <panel>
+      <title>Element Tag</title>
+      <single>
+        <search id="elementSearch" base="panelsBaseSearch">
+          <query>| lookup pipeline_element_lookup _key as url output element
+| fillnull value="None" element
+| table element</query>
+        </search>
+        <option name="drilldown">none</option>
+      </single>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Stages</title>
+      <table>
+        <search>
+          <query>index=pivt_jenkins PIPELINE_URL=$job_url$
+| eval duration = round(duration / 1000 / 60, 2)
+| sort _time
+| rename url as URL, result as Result, duration as "Duration (m)"
+| eval Time = strftime(_time, "%Y-%m-%d %H:%M:%S")
+| table Time URL Result "Duration (m)"</query>
+          <earliest>0</earliest>
+          <latest></latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="count">20</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+      </table>
+    </panel>
+    <panel id="fieldValue">
+      <title>-</title>
+      <table>
+        <search base="panelsBaseSearch">
+          <query>| fields _time %%ci33%%_BUILD_TYPE %%ci33%%_BUILD_VERSION %%ci21%%_BUILD_VERSION %%ci22%%_BUILD_VERSION BASE_SNAPSHOT_NAME
+| rename %%ci33%%_BUILD_TYPE as "%%ci33%% Build Type", %%ci33%%_BUILD_VERSION as "%%ci33%% Version", %%ci21%%_BUILD_VERSION as "%%ci21%% Version", %%ci22%%_BUILD_VERSION as "%%ci22%% Version", BASE_SNAPSHOT_NAME as "Image Produced"
+| untable _time field value
+| eval n = case(field == "%%ci33%% Build Type", 0, field == "%%ci33%% Version", 1, field == "%%ci21%% Version", 2, field == "%%ci22%% Version", 3, field == "Image Produced", 4, true(), -1)
+| sort n
+| fields - _time, n</query>
+        </search>
+        <option name="count">20</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>UT Pass Rate</title>
+      <single>
+        <search>
+          <query>index=pivt_jenkins stage=UnitTest PIPELINE_URL=$job_url$
+| eval ut_pass = passCount / (passCount + failCount) * 100
+| table ut_pass</query>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="numberPrecision">0.00</option>
+        <option name="unit">%</option>
+      </single>
+    </panel>
+    <panel>
+      <title>FT Pass Rate</title>
+      <single>
+        <search base="ftBaseSearch">
+          <query>| eval ft_pass = ft_pass * 100
+| table ft_pass</query>
+        </search>
+        <option name="drilldown">all</option>
+        <option name="numberPrecision">0.00</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="unit">%</option>
+        <drilldown>
+          <link target="_blank">/app/pivt/ft_run_inspector?form.instance=$job_instance$&amp;form.job=$ft_job_name$&amp;form.number=$ft_job_number$</link>
+        </drilldown>
+      </single>
+    </panel>
+    <panel>
+      <title>FT Core Pass Rate</title>
+      <single>
+        <search base="ftBaseSearch">
+          <query>| eval ft_core_pass = ft_core_pass * 100
+| table ft_core_pass</query>
+        </search>
+        <option name="drilldown">all</option>
+        <option name="numberPrecision">0.00</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="unit">%</option>
+        <drilldown>
+          <link target="_blank">/app/pivt/ft_run_inspector?form.instance=$job_instance$&amp;form.job=$ft_job_name$&amp;form.number=$ft_job_number$</link>
+        </drilldown>
+      </single>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <input type="text" token="element_tag" id="element_tag_text_box">
+        <label>Element Tag</label>
+      </input>
+      <html>
+        <button id="submitButton">Submit</button>
+      </html>
+    </panel>
+  </row>
+</form>

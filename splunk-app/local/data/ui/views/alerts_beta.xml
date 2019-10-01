@@ -1,0 +1,48 @@
+<form>
+  <label>Alerts (BETA)</label>
+  <description>PIVT Version: 0.1.2.19.1 --- Last pull date: None</description>
+  <init>
+    <set token="search_token"></set>
+  </init>
+  <fieldset submitButton="false">
+    <input type="text" token="search_token" searchWhenChanged="true">
+      <label>Search Filter</label>
+    </input>
+    <input type="checkbox" token="checkbox_token" searchWhenChanged="true">
+      <label>Log Levels</label>
+      <valuePrefix>level="</valuePrefix>
+      <valueSuffix>"</valueSuffix>
+      <delimiter> OR </delimiter>
+      <fieldForLabel>level</fieldForLabel>
+      <fieldForValue>level</fieldForValue>
+      <search>
+        <query>index=pivt_log 
+| stats count by level</query>
+        <earliest>0</earliest>
+        <latest></latest>
+      </search>
+      <prefix>(</prefix>
+      <suffix>)</suffix>
+      <change>
+        <condition match="isnull($checkbox_token$)">
+          <set token="checkbox_token"></set>
+        </condition>
+      </change>
+    </input>
+  </fieldset>
+  <row>
+    <panel>
+      <title>Search PIVT Logs</title>
+      <event>
+        <search>
+          <query>index=pivt_log $search_token$ $checkbox_token$</query>
+          <earliest>0</earliest>
+          <latest></latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="list.drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </event>
+    </panel>
+  </row>
+</form>

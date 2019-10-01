@@ -1,0 +1,313 @@
+{
+    "modelName": "pivt_vic_status",
+    "displayName": "pivt_vic_status",
+    "description": "",
+    "objectSummary": {
+        "Event-Based": 1,
+        "Transaction-Based": 0,
+        "Search-Based": 0
+    },
+    "objects": [
+        {
+            "objectName": "vic_status",
+            "displayName": "VIC Status",
+            "parentName": "BaseEvent",
+            "comment": "",
+            "fields": [
+                {
+                    "fieldName": "active",
+                    "owner": "vic_status",
+                    "type": "string",
+                    "fieldSearch": "active=*",
+                    "required": true,
+                    "multivalue": false,
+                    "hidden": false,
+                    "editable": true,
+                    "displayName": "active",
+                    "comment": ""
+                },
+                {
+                    "fieldName": "ci",
+                    "owner": "vic_status",
+                    "type": "string",
+                    "fieldSearch": "ci=*",
+                    "required": true,
+                    "multivalue": false,
+                    "hidden": false,
+                    "editable": true,
+                    "displayName": "ci",
+                    "comment": ""
+                },
+                {
+                    "fieldName": "ci_allocation",
+                    "owner": "vic_status",
+                    "type": "string",
+                    "fieldSearch": "ci_allocation=*",
+                    "required": true,
+                    "multivalue": false,
+                    "hidden": false,
+                    "editable": true,
+                    "displayName": "ci_allocation",
+                    "comment": ""
+                },
+                {
+                    "fieldName": "created",
+                    "owner": "vic_status",
+                    "type": "string",
+                    "fieldSearch": "",
+                    "required": false,
+                    "multivalue": false,
+                    "hidden": false,
+                    "editable": true,
+                    "displayName": "created",
+                    "comment": ""
+                },
+                {
+                    "fieldName": "pipeline",
+                    "owner": "vic_status",
+                    "type": "string",
+                    "fieldSearch": "",
+                    "required": false,
+                    "multivalue": false,
+                    "hidden": false,
+                    "editable": true,
+                    "displayName": "pipeline",
+                    "comment": ""
+                },
+                {
+                    "fieldName": "pipeline_url",
+                    "owner": "vic_status",
+                    "type": "string",
+                    "fieldSearch": "",
+                    "required": false,
+                    "multivalue": false,
+                    "hidden": false,
+                    "editable": true,
+                    "displayName": "pipeline_url",
+                    "comment": ""
+                },
+                {
+                    "fieldName": "profile",
+                    "owner": "vic_status",
+                    "type": "string",
+                    "fieldSearch": "",
+                    "required": false,
+                    "multivalue": false,
+                    "hidden": false,
+                    "editable": true,
+                    "displayName": "profile",
+                    "comment": ""
+                },
+                {
+                    "fieldName": "release",
+                    "owner": "vic_status",
+                    "type": "string",
+                    "fieldSearch": "",
+                    "required": false,
+                    "multivalue": false,
+                    "hidden": false,
+                    "editable": true,
+                    "displayName": "release",
+                    "comment": ""
+                },
+                {
+                    "fieldName": "state",
+                    "owner": "vic_status",
+                    "type": "string",
+                    "fieldSearch": "",
+                    "required": false,
+                    "multivalue": false,
+                    "hidden": false,
+                    "editable": true,
+                    "displayName": "state",
+                    "comment": ""
+                },
+                {
+                    "fieldName": "timestamp",
+                    "owner": "vic_status",
+                    "type": "number",
+                    "fieldSearch": "timestamp=*",
+                    "required": true,
+                    "multivalue": false,
+                    "hidden": false,
+                    "editable": true,
+                    "displayName": "timestamp",
+                    "comment": ""
+                },
+                {
+                    "fieldName": "_time",
+                    "owner": "BaseEvent",
+                    "type": "timestamp",
+                    "fieldSearch": "",
+                    "required": false,
+                    "multivalue": false,
+                    "hidden": false,
+                    "editable": true,
+                    "displayName": "_time",
+                    "comment": ""
+                },
+                {
+                    "fieldName": "host",
+                    "owner": "BaseEvent",
+                    "type": "string",
+                    "fieldSearch": "",
+                    "required": false,
+                    "multivalue": false,
+                    "hidden": false,
+                    "editable": true,
+                    "displayName": "host",
+                    "comment": ""
+                },
+                {
+                    "fieldName": "source",
+                    "owner": "BaseEvent",
+                    "type": "string",
+                    "fieldSearch": "",
+                    "required": false,
+                    "multivalue": false,
+                    "hidden": false,
+                    "editable": true,
+                    "displayName": "source",
+                    "comment": ""
+                },
+                {
+                    "fieldName": "sourcetype",
+                    "owner": "BaseEvent",
+                    "type": "string",
+                    "fieldSearch": "",
+                    "required": false,
+                    "multivalue": false,
+                    "hidden": false,
+                    "editable": true,
+                    "displayName": "sourcetype",
+                    "comment": ""
+                }
+            ],
+            "calculations": [
+                {
+                    "outputFields": [
+                        {
+                            "fieldName": "derived_ci",
+                            "owner": "vic_status",
+                            "type": "string",
+                            "fieldSearch": "",
+                            "required": false,
+                            "multivalue": false,
+                            "hidden": false,
+                            "editable": true,
+                            "displayName": "derived_ci",
+                            "comment": ""
+                        },
+                        {
+                            "fieldName": "allocation_num",
+                            "owner": "vic_status",
+                            "type": "number",
+                            "fieldSearch": "",
+                            "required": false,
+                            "multivalue": false,
+                            "hidden": false,
+                            "editable": true,
+                            "displayName": "allocation_num",
+                            "comment": ""
+                        },
+                        {
+                            "fieldName": "total_allocated",
+                            "owner": "vic_status",
+                            "type": "number",
+                            "fieldSearch": "",
+                            "required": false,
+                            "multivalue": false,
+                            "hidden": false,
+                            "editable": true,
+                            "displayName": "total_allocated",
+                            "comment": ""
+                        }
+                    ],
+                    "inputField": "ci_allocation",
+                    "calculationID": "oqtqrcstct",
+                    "owner": "vic_status",
+                    "editable": true,
+                    "comment": "",
+                    "calculationType": "Rex",
+                    "expression": "(?<derived_ci>.+) \\((?<allocation_num>\\d+) of (?<total_allocated>\\d+)\\)"
+                },
+                {
+                    "outputFields": [
+                        {
+                            "fieldName": "type",
+                            "owner": "vic_status",
+                            "type": "string",
+                            "fieldSearch": "",
+                            "required": false,
+                            "multivalue": false,
+                            "hidden": false,
+                            "editable": true,
+                            "displayName": "type",
+                            "comment": ""
+                        }
+                    ],
+                    "calculationID": "ue4znv29ru",
+                    "owner": "vic_status",
+                    "editable": true,
+                    "comment": "",
+                    "calculationType": "Eval",
+                    "expression": "if(pipeline!=\"\" AND pipeline_url!=\"\", \"Pipeline\", \"Integration\")"
+                },
+                {
+                    "outputFields": [
+                        {
+                            "fieldName": "allocated",
+                            "owner": "vic_status",
+                            "type": "number",
+                            "fieldSearch": "allocated=*",
+                            "required": true,
+                            "multivalue": false,
+                            "hidden": false,
+                            "editable": true,
+                            "displayName": "allocated",
+                            "comment": ""
+                        }
+                    ],
+                    "calculationID": "w1lpjr93jc",
+                    "owner": "vic_status",
+                    "editable": true,
+                    "comment": "",
+                    "calculationType": "Eval",
+                    "expression": "if(active==\"true\", 1, 0)"
+                },
+                {
+                    "outputFields": [
+                        {
+                            "fieldName": "running",
+                            "owner": "vic_status",
+                            "type": "number",
+                            "fieldSearch": "running=*",
+                            "required": true,
+                            "multivalue": false,
+                            "hidden": false,
+                            "editable": true,
+                            "displayName": "running",
+                            "comment": ""
+                        }
+                    ],
+                    "calculationID": "12b2kmrp12he",
+                    "owner": "vic_status",
+                    "editable": true,
+                    "comment": "",
+                    "calculationType": "Eval",
+                    "expression": "if(active==\"true\" AND state!=\"stopped\", 1, 0)"
+                }
+            ],
+            "constraints": [
+                {
+                    "search": "index=pivt_vic_status",
+                    "owner": "vic_status"
+                }
+            ],
+            "lineage": "vic_status"
+        }
+    ],
+    "objectNameList": [
+        "vic_status"
+    ]
+}

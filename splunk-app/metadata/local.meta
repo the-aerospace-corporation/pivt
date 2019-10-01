@@ -1,0 +1,368 @@
+
+# Application-level permissions
+
+[]
+access = read : [ admin, can_delete, ocx_user, power, splunk-system-role ], write : [ admin, power ]
+export = none
+version = 7.0.2
+modtime = 1521752374.181647000
+
+
+### EVENT TYPES
+
+[eventtypes]
+export = system
+
+
+### PROPS
+
+[props]
+export = system
+
+
+### TRANSFORMS
+
+[transforms]
+export = system
+
+
+### LOOKUPS
+
+[lookups]
+export = system
+
+
+### VIEWSTATES: even normal users should be able to create shared viewstates
+
+[viewstates]
+access = read : [ * ], write : [ * ]
+export = system
+
+
+### EVERYTHING ELSE
+
+[app/ui]
+version = 7.0.0
+modtime = 1520446779.715403000
+
+[app/launcher]
+version = 7.0.0
+modtime = 1520446779.721487000
+
+[nav/default]
+version = 7.0.3
+modtime = 1565385776.096817000
+
+[macros/lineartrend%282%29]
+export = none
+owner = admin
+version = 7.0.3
+modtime = 1559835752.576183000
+
+[app/package/check_for_updates]
+version = 7.0.0
+modtime = 1520446779.723521000
+
+[datamodels/pivt_jenkins]
+export = none
+owner = admin
+version = 7.0.3
+modtime = 1567713851.867179000
+
+[models/pivt_jenkins]
+export = none
+owner = admin
+version = 7.0.3
+modtime = 1567787878.576560000
+
+[props/jenkins_json]
+owner = admin
+version = 7.0.2
+modtime = 1520630782.787001000
+
+[props/cq_csv]
+owner = admin
+version = 7.0.2
+modtime = 1530060449.377926000
+
+[props/cq_files_changed_csv]
+owner = admin
+version = 7.0.2
+modtime = 1520630918.824585000
+
+[views/jenkins_interactive]
+version = 7.0.3
+modtime = 1563223528.728207000
+
+[views/clearquest_interactive]
+version = 7.0.3
+modtime = 1567642354.981921000
+
+[views/jenkins_production_statistics]
+version = 7.0.3
+modtime = 1542744774.681257000
+
+[inputs/monitor%3A%2F%2F%2Fopt%2Fpivt%2FData%2FData%2Fjenkins]
+owner = admin
+version = 7.0.2
+modtime = 1526423307.308261000
+
+[inputs/monitor%3A%2F%2F%2Fopt%2Fpivt%2FData%2FData%2Fcq%2FCQ_Data.csv]
+owner = admin
+version = 7.0.2
+modtime = 1526423338.255196000
+
+[inputs/monitor%3A%2F%2F%2Fopt%2Fpivt%2FData%2FData%2Fcq%2FCQ_Changed_Files.csv]
+owner = admin
+version = 7.0.2
+modtime = 1526423782.472371000
+
+[indexes/pivt_cq_files]
+owner = admin
+version = 7.0.2
+modtime = 1529975528.221311000
+
+[indexes/pivt_jenkins]
+owner = admin
+version = 7.0.2
+modtime = 1529975534.657761000
+
+[indexes/pivt_ins]
+owner = admin
+version = 7.0.2
+modtime = 1532732353.115754000
+
+[inputs/monitor%3A%2F%2F%2Fopt%2Fpivt%2FData%2FData%2Fins]
+owner = admin
+version = 7.0.2
+modtime = 1532732357.361504000
+
+[views/ins_beta]
+owner = admin
+version = 7.0.3
+modtime = 1563208306.816343000
+
+[inputs/monitor%3A%2F%2F%2Fopt%2Fpivt%2FData%2FData%2Fjenkins%2Fft]
+version = 7.0.2
+modtime = 1537379216.542573000
+
+[props/jenkins_ft_json]
+owner = admin
+version = 7.0.2
+modtime = 1537379414.425511000
+
+[props/jenkins_ft_csv]
+owner = admin
+version = 7.0.2
+modtime = 1538074221.729311000
+
+[savedsearches/PIVT%20Jenkins%20FT%20Features]
+export = none
+owner = admin
+version = 7.0.3
+modtime = 1560879537.739401000
+
+[savedsearches/PIVT%20Jenkins%20FT%20Scenarios]
+export = none
+owner = admin
+version = 7.0.3
+modtime = 1567724147.282161000
+
+[views/go_green_dashboard]
+version = 7.0.3
+modtime = 1563223226.751841000
+
+[views/pipeline_availability_beta]
+export = none
+owner = admin
+version = 7.0.3
+modtime = 1559855513.162400000
+
+[indexes/pivt_jenkins_ft]
+owner = admin
+version = 7.0.2
+modtime = 1529975534.657761000
+
+[indexes/pivt_vic]
+owner = admin
+version = 7.0.3
+modtime = 1542240325.050602000
+
+[inputs/monitor%3A%2F%2F%2Fapp%2Fpivt%2Fvar%2Fdata%2Fdata%2Fvic]
+owner = admin
+version = 7.0.3
+modtime = 1542240333.067801000
+
+[views/vic_utilization_beta]
+owner = admin
+version = 7.0.3
+modtime = 1552496309.358440000
+
+[savedsearches/PIVT%20Jenkins%20TTR]
+export = none
+owner = admin
+version = 7.0.3
+modtime = 1552003773.674210000
+
+[savedsearches/PIVT%20Jenkins%20FT%20Scenario%20TTR%20by%20Build]
+export = none
+owner = admin
+version = 7.0.3
+modtime = 1547592304.273318000
+
+[indexes/pivt_vic_status]
+owner = admin
+version = 7.0.3
+modtime = 1543886665.132038000
+
+[inputs/monitor%3A%2F%2F%2Fapp%2Fpivt%2Fvar%2Fdata%2Fdata%2Fvic_status]
+owner = admin
+version = 7.0.3
+modtime = 1543886742.820778000
+
+[datamodels/pivt_vic_status]
+version = 7.0.3
+modtime = 1544817228.171407000
+
+[models/pivt_vic_status]
+version = 7.0.3
+modtime = 1544817228.276778000
+
+[views/yield_beta]
+owner = admin
+version = 7.0.3
+modtime = 1561759534.211553000
+
+[views/ft_truth]
+owner = admin
+version = 7.0.3
+modtime = 1562879898.493306000
+
+[savedsearches/PIVT%20Scenario%20Truth]
+export = none
+owner = admin
+version = 7.0.3
+modtime = 1549477560.102306000
+
+[macros/nominal_build]
+export = none
+owner = admin
+version = 7.0.3
+modtime = 1559836041.991889000
+
+[macros/nominal%281%29]
+export = none
+owner = admin
+version = 7.0.3
+modtime = 1556058545.220740000
+
+[views/internal_metrics]
+export = none
+owner = admin
+version = 7.0.3
+modtime = 1558544044.025586000
+
+[macros/pipeline%281%29]
+export = none
+owner = admin
+version = 7.0.3
+modtime = 1556058562.915794000
+
+[macros/p-release-pipeline]
+export = none
+owner = admin
+version = 7.0.3
+modtime = 1556060636.190906000
+
+[datamodels/internal_server]
+version = 7.0.3
+modtime = 1558544260.395373000
+
+[models/internal_server]
+version = 7.0.3
+modtime = 1558544260.573458000
+
+[macros/combine_with_pipelines%282%29]
+export = none
+owner = admin
+version = 7.0.3
+modtime = 1559854837.764338000
+
+[views/ins_run_inspector]
+owner = admin
+version = 7.0.3
+modtime = 1563293512.352141000
+
+[savedsearches/PIVT%20FCO%20Report]
+export = none
+owner = admin
+version = 7.0.3
+modtime = 1560530793.441425000
+
+[views/ins_fco_comparison]
+owner = admin
+version = 7.0.3
+modtime = 1560530767.194523000
+
+[indexes/pivt_fco]
+owner = admin
+version = 7.0.3
+modtime = 1560530591.079004000
+
+[indexes/pivt_fco_ft]
+owner = admin
+version = 7.0.3
+modtime = 1560530608.280888000
+
+[views/rcr]
+version = 7.0.3
+modtime = 1567785821.214034000
+
+[savedsearches/PIVT%20Scenario%20Core%20Truth]
+access = read : [ admin, can_delete, ocx_user, power, splunk-system-role ], write : [ admin, power ]
+export = none
+owner = admin
+version = 7.0.3
+modtime = 1561672938.677111000
+
+[views/ft_run_inspector]
+version = 7.0.3
+modtime = 1563223366.789793000
+
+[indexes/pivt_cq]
+owner = script_user
+version = 7.0.3
+modtime = 1565289055.933149000
+
+[indexes/pivt_log]
+owner = admin
+version = 7.0.3
+modtime = 1565289859.734140000
+
+[inputs/monitor%3A%2F%2F%2Fapp%2Fpivt%2Fvar%2Flog]
+owner = admin
+version = 7.0.3
+modtime = 1565644155.182127000
+
+[views/alerts_beta]
+export = none
+owner = admin
+version = 7.0.3
+modtime = 1569345290.155123000
+
+[props/pivt_log/EXTRACT-class%2Clevel%2Cmessage]
+access = read : [ * ], write : [ admin ]
+export = none
+owner = admin
+version = 7.0.3
+modtime = 1565644734.509824000
+
+[views/pipeline_run_inspector]
+owner = admin
+version = 7.0.3
+modtime = 1567792223.452299000
+
+[views/ft]
+version = 7.0.3
+modtime = 1568920869.585217000
+

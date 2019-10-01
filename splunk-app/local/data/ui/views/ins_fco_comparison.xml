@@ -1,0 +1,116 @@
+<form>
+  <label>%%ci33%% FCO Comparison (BETA)</label>
+  <description>PIVT Version: 0.1.2.19.1 --- Last pull date: None</description>
+  <search id="releasesBaseSearch">
+    <query>index=pivt_platform_fco
+| stats count by release</query>
+    <earliest>0</earliest>
+    <latest></latest>
+  </search>
+  <fieldset submitButton="false">
+    <input type="dropdown" token="release_1" searchWhenChanged="true">
+      <label>Release 1</label>
+      <fieldForLabel>release</fieldForLabel>
+      <fieldForValue>release</fieldForValue>
+      <search base="releasesBaseSearch"></search>
+    </input>
+    <input type="dropdown" token="release_2" searchWhenChanged="true">
+      <label>Release 2</label>
+      <fieldForLabel>release</fieldForLabel>
+      <fieldForValue>release</fieldForValue>
+      <search base="releasesBaseSearch"></search>
+    </input>
+  </fieldset>
+  <row>
+    <panel>
+      <table>
+        <title>$release_1$ FCO</title>
+        <search>
+          <query>| savedsearch "PIVT FCO Report" release=$release_1$
+| where Core != "Total"</query>
+          <earliest>0</earliest>
+          <latest></latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="count">20</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+      </table>
+      <table>
+        <search>
+          <query>| savedsearch "PIVT FCO Report" release=$release_1$
+| where Core == "Total"</query>
+          <earliest>0</earliest>
+          <latest></latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="count">20</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+        <format type="color" field="SC Score">
+          <colorPalette type="list">[#D93F3C,#65A637]</colorPalette>
+          <scale type="threshold">80</scale>
+        </format>
+        <format type="color" field="Scenario Score">
+          <colorPalette type="list">[#D93F3C,#65A637]</colorPalette>
+          <scale type="threshold">80</scale>
+        </format>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <table>
+        <title>$release_2$ FCO</title>
+        <search>
+          <query>| savedsearch "PIVT FCO Report" release=$release_2$
+| where Core != "Total"</query>
+          <earliest>0</earliest>
+          <latest></latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="count">20</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+      </table>
+      <table>
+        <search>
+          <query>| savedsearch "PIVT FCO Report" release=$release_2$
+| where Core == "Total"</query>
+          <earliest>0</earliest>
+          <latest></latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="count">20</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+        <format type="color" field="SC Score">
+          <colorPalette type="list">[#D93F3C,#65A637]</colorPalette>
+          <scale type="threshold">80</scale>
+        </format>
+        <format type="color" field="Scenario Score">
+          <colorPalette type="list">[#D93F3C,#65A637]</colorPalette>
+          <scale type="threshold">80</scale>
+        </format>
+      </table>
+    </panel>
+  </row>
+</form>

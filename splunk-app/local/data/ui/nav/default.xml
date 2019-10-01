@@ -1,0 +1,23 @@
+<nav search_view="search" color="#CC0A2F">
+	<view name="search" />
+	<view name="jenkins_interactive" default="true" />
+	<view name="jenkins_production_statistics" />
+	<view name="go_green_dashboard" />
+	<view name="vic_utilization" />
+	<collection label="Beta Dashboards">
+		<view name="alerts_beta" />
+		<view name="clearquest_interactive" />
+		<view name="ft" />
+        <view name="ft_run_inspector" />
+		<view name="ft_truth" />
+		<view name="ins_audit" />
+		<view name="ins_beta" />
+        <view name="ins_run_inspector" />
+		<view name="ins_fco_comparison" />
+		<view name="internal_metrics" />
+		<view name="pipeline_availability_beta" />
+		<view name="pipeline_run_inspector" />
+		<view name="rcr" />
+		<view name="yield_beta" />
+	</collection>
+</nav>

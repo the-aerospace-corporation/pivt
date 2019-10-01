@@ -1,0 +1,28 @@
+[
+    {
+        "id":"simpleId",
+        "name":"Simple feature",
+        "keyword":"Feature",
+        "elements":[
+            {
+                "name":"Simple scenario",
+                "keyword":"Scenario",
+                "steps":[
+                    {
+                        "result":{
+                            "duration":123456789,
+                            "status":"passed"
+                        },
+                        "name":"Simple step name",
+                        "keyword":"Given ",
+                        "match":{
+                            "location":"simple.location()"
+                        }
+                    }
+                ],
+                "type":"scenario"
+            }
+        ],
+        "uri":"simple:uri"
+    }
+]

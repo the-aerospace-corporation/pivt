@@ -1,0 +1,200 @@
+<form>
+  <label>Yield (BETA)</label>
+  <description>PIVT Version: 0.1.2.19.1 --- Last pull date: None</description>
+  <search id="filtersSearch">
+    <query>| savedsearch "PIVT Jenkins FT Scenarios" instance=Production tag=$tag$ nominal=yes
+| stats count by ci, release</query>
+    <earliest>$timeWindow.earliest$</earliest>
+    <latest>$timeWindow.latest$</latest>
+  </search>
+  <search id="baseSearch">
+    <query>| savedsearch "PIVT Jenkins FT Scenarios" instance=Production tag=$tag$ nominal=yes
+| search $ci$ $release$</query>
+    <earliest>$timeWindow.earliest$</earliest>
+    <latest>$timeWindow.latest$</latest>
+  </search>
+  <fieldset submitButton="false">
+    <input type="multiselect" token="ci" searchWhenChanged="true" id="multiinput1">
+      <label>CI</label>
+      <choice value="*">All</choice>
+      <default>*</default>
+      <initialValue>*</initialValue>
+      <prefix>(</prefix>
+      <suffix>)</suffix>
+      <fieldForLabel>ci</fieldForLabel>
+      <fieldForValue>ci</fieldForValue>
+      <search base="filtersSearch">
+        <query>| search $release$ | stats count by ci</query>
+      </search>
+      <valuePrefix>ci="</valuePrefix>
+      <valueSuffix>"</valueSuffix>
+      <delimiter> OR </delimiter>
+    </input>
+    <input type="multiselect" token="release" searchWhenChanged="true" id="multiinput2">
+      <label>Release</label>
+      <choice value="*">All</choice>
+      <default>*</default>
+      <initialValue>*</initialValue>
+      <prefix>(</prefix>
+      <suffix>)</suffix>
+      <fieldForLabel>release</fieldForLabel>
+      <fieldForValue>release</fieldForValue>
+      <search base="filtersSearch">
+        <query>| search $ci$ | stats count by release</query>
+      </search>
+      <valuePrefix>release="</valuePrefix>
+      <valueSuffix>"</valueSuffix>
+      <delimiter> OR </delimiter>
+    </input>
+    <input type="dropdown" token="tag" searchWhenChanged="true">
+      <label>Tag</label>
+      <choice value="all">All</choice>
+      <choice value="core">Core</choice>
+      <choice value="notcore">Not Core</choice>
+      <default>all</default>
+      <initialValue>all</initialValue>
+    </input>
+    <input type="time" token="timeWindow" searchWhenChanged="true">
+      <label></label>
+      <default>
+        <earliest>-7d@h</earliest>
+        <latest>now</latest>
+      </default>
+    </input>
+  </fieldset>
+  <row>
+    <panel>
+      <title>Requirements Tested Per Run by CI</title>
+      <chart>
+        <search base="baseSearch">
+          <query>| xyseries _time ci req_count</query>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.overflowMode">ellipsisNone</option>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.axisTitleY.text">Requirements Tested</option>
+        <option name="charting.axisTitleY.visibility">visible</option>
+        <option name="charting.axisTitleY2.visibility">visible</option>
+        <option name="charting.axisX.abbreviation">none</option>
+        <option name="charting.axisX.scale">linear</option>
+        <option name="charting.axisY.abbreviation">none</option>
+        <option name="charting.axisY.scale">linear</option>
+        <option name="charting.axisY2.abbreviation">none</option>
+        <option name="charting.axisY2.enabled">0</option>
+        <option name="charting.axisY2.scale">inherit</option>
+        <option name="charting.chart">column</option>
+        <option name="charting.chart.bubbleMaximumSize">50</option>
+        <option name="charting.chart.bubbleMinimumSize">10</option>
+        <option name="charting.chart.bubbleSizeBy">area</option>
+        <option name="charting.chart.nullValueMode">gaps</option>
+        <option name="charting.chart.showDataLabels">none</option>
+        <option name="charting.chart.sliceCollapsingThreshold">0.01</option>
+        <option name="charting.chart.stackMode">default</option>
+        <option name="charting.chart.style">shiny</option>
+        <option name="charting.drilldown">none</option>
+        <option name="charting.layout.splitSeries">0</option>
+        <option name="charting.layout.splitSeries.allowIndependentYRanges">0</option>
+        <option name="charting.legend.labelStyle.overflowMode">ellipsisMiddle</option>
+        <option name="charting.legend.mode">standard</option>
+        <option name="charting.legend.placement">right</option>
+        <option name="charting.lineWidth">2</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="trellis.enabled">0</option>
+        <option name="trellis.scales.shared">1</option>
+        <option name="trellis.size">medium</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>General Scenario Statistics</title>
+      <table>
+        <title>Averages calculated by run</title>
+        <search base="baseSearch">
+          <query>| stats sum(scen_failed) as failedCount, sum(scen_passed) as passedCount, count(eval(scen_passed + scen_failed &gt; 0)) as countWithExecutions, avg(req_count) as req_count by ci
+| eval totalCount = failedCount + passedCount
+| eval avgScenCount = totalCount / countWithExecutions
+| eval avgFailed = failedCount / countWithExecutions
+| eval avgPassed = passedCount / countWithExecutions
+| eval avgPassRate = avgPassed / avgScenCount * 100
+| rename ci as CI
+| fillnull value="--------" avgScenCount
+| fillnull value="--------" avgPassed
+| fillnull value="--------" avgFailed
+| fillnull value="--------" avgPassRate
+| rename avgScenCount as "Avg Number of Scenarios"
+| rename avgPassed as "Avg Passed Scenarios"
+| rename avgFailed as "Avg Failed Scenarios"
+| rename avgPassRate as "Avg Passed Scenarios (%)"
+| rename req_count as "Avg Requirements Tested"
+| table CI "Avg Number of Scenarios" "Avg Failed Scenarios" "Avg Passed Scenarios" "Avg Passed Scenarios (%)" "Avg Requirements Tested"</query>
+        </search>
+        <option name="count">20</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+        <format type="number" field="Avg Number of Scenarios"></format>
+        <format type="number" field="Avg Failed Scenarios"></format>
+        <format type="number" field="Avg Passed Scenarios"></format>
+        <format type="number" field="Avg Passed Scenarios (%)">
+          <option name="unit">%</option>
+        </format>
+        <format type="number" field="MTTR (h)"></format>
+        <format type="number" field="Avg Requirements Tested"></format>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Scenario count, count of scenarios testing requirements, requirement count by run</title>
+      <table>
+        <title>ScenCount = total number of scenarios; ScenCountTestingReqs = number of scenarios testing requirements; ReqCount = total requirements tested</title>
+        <search base="baseSearch">
+          <query>| fields _time ci release number scen_count core_tests req_scen_count req_count</query>
+        </search>
+        <option name="count">20</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Scenarios, their tags, and their requirements (parsed from tags) - last 30 days</title>
+      <table>
+        <search>
+          <query>index=pivt_jenkins_ft source=*scenarios* job_instance=Production
+| rename job_ci as ci, job_release as release
+| search $ci$ $release$
+| eval tags = replace(tags, ",", "")
+| eval core = if(isnotnull(mvfind(tags, "core")), "yes", "no")
+| makemv delim=":" tags
+| where index!="pivt_jenkins_ft" OR case("$tag$"=="core", core=="yes", "$tag$"=="notcore", core=="no", true(), true())
+| eval reqs = mvfilter(match(tags, "[a-zA-Z]+[_-]\d+.*"))
+| eval req_count = mvcount(reqs)
+| fillnull value=0 req_count
+| table _time ci release job_number id result tags core reqs req_count</query>
+          <earliest>$timeWindow.earliest$</earliest>
+          <latest>$timeWindow.latest$</latest>
+        </search>
+        <option name="count">20</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+      </table>
+    </panel>
+  </row>
+</form>

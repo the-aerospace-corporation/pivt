@@ -1,0 +1,67 @@
+[
+    {
+        "id": "1st-feature",
+        "name": "1st feature",
+        "elements": [
+            {
+                "name": "1st background",
+                "steps": [
+                    {"result": {"status": "passed"}},
+                    {"result": {"status": "passed"}},
+                    {"result": {"status": "passed"}},
+                    {"result": {"status": "passed"}}
+                ],
+                "type": "background"
+            },
+            {
+                "id": "1st-feature;1st-scenario",
+                "name": "1st scenario",
+                "steps": [
+                    {"result": {"status": "passed"}},
+                    {"result": {"status": "passed"}},
+                    {"result": {"status": "passed"}},
+                    {"result": {"status": "passed"}},
+                    {"result": {"status": "passed"}},
+                    {"result": {"status": "passed"}}
+                ],
+                "type": "scenario"
+            }
+        ]
+    },
+    {
+        "id": "2nd-feature",
+        "name": "2nd feature",
+        "elements": [
+            {
+                "id": "2nd-feature;1st-scenario",
+                "name": "1st scenario",
+                "steps": [
+                    {"result": {"status": "passed"}},
+                    {"result": {"status": "passed"}},
+                    {"result": {"status": "passed"}}
+                ],
+                "type": "scenario"
+            },
+            {
+                "id": "2nd-feature;1st-scenario",
+                "name": "1st scenario",
+                "steps": [
+                    {"result": {"status": "passed"}},
+                    {"result": {"status": "failed"}},
+                    {"result": {"status": "skipped"}}
+                ],
+                "type": "scenario"
+            },
+            {
+                "id": "2nd-feature;2nd-scenario",
+                "name": "2nd scenario",
+                "steps": [
+                    {"result": {"status": "skipped"}},
+                    {"result": {"status": "skipped"}},
+                    {"result": {"status": "skipped"}}
+                ],
+                "type": "scenario"
+            }
+        ]
+    }
+]

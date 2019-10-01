@@ -1,0 +1,93 @@
+<form>
+  <label>%%ci33%% Audit</label>
+  <description>PIVT Version: 0.1.2.19.1 --- Last pull date: None</description>
+  <search id="baseSearch">
+    <query>index=pivt_platform_audit Version=$version$
+| fields Control Node Status Test Message OS Lab Version
+| join Node
+  [| inputlookup aws_node_list.csv
+  | rename HOST_NAME as Node
+  | rename CORE_DESIG as core
+  | fields Node core]
+| eval lab = substr(Node, 0, 3)
+| eval enclave = substr(Node, 4, 4)
+| eval function = substr(Node, 8, 3)
+| eval number = substr(Node, 11)
+| eval env = if(in(enclave, "gpcc", "mcco", "dsas", "gcc1", "gcc2", "dmzs", "tran", "rebs"), "CMN", enclave)</query>
+    <earliest>0</earliest>
+    <latest></latest>
+    <sampleRatio>1</sampleRatio>
+  </search>
+  <fieldset submitButton="false">
+    <input type="dropdown" token="version" searchWhenChanged="true">
+      <label>Run</label>
+      <fieldForLabel>Version</fieldForLabel>
+      <fieldForValue>Version</fieldForValue>
+      <search>
+        <query>index=pivt_platform_audit
+| stats count by Version</query>
+        <earliest>0</earliest>
+        <latest></latest>
+      </search>
+    </input>
+  </fieldset>
+  <row>
+    <panel>
+      <title>Pass Rate by Core</title>
+      <chart>
+        <search base="baseSearch">
+          <query>| chart count by core, Status
+| addtotals
+| eval "Passed %" = passed / Total * 100
+| fields core, "Passed %"</query>
+        </search>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.axisY.maximumNumber">100</option>
+        <option name="charting.axisY.minimumNumber">0</option>
+        <option name="charting.chart">column</option>
+        <option name="charting.drilldown">none</option>
+        <option name="charting.legend.placement">none</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
+    </panel>
+    <panel>
+      <title>Pass Rate by Enclave</title>
+      <table>
+        <search base="baseSearch">
+          <query>| stats count as total, count(eval(Status == "passed")) as passed by env, enclave
+| eval passed = passed / total * 100
+| fields - total
+| rename env as Environment, enclave as "Enclave", passed as "Pass Rate"</query>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+        <format type="number" field="Pass Rate">
+          <option name="unit">%</option>
+        </format>
+        <format type="color" field="Pass Rate">
+          <colorPalette type="minMidMax" maxColor="#65A637" midColor="#FFFFFF" minColor="#D93F3C"></colorPalette>
+          <scale type="minMidMax" maxValue="100" midValue="50" minValue="0"></scale>
+        </format>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Pass Rate by Node</title>
+      <chart>
+        <search base="baseSearch">
+          <query>| stats count as total, count(eval(Status == "passed")) as passed by Node
+| eval passed = round(passed / total * 100, 2)
+| fields - total
+| rename env as Environment, type as "Node Type", passed as "Pass Rate"</query>
+        </search>
+        <option name="charting.axisY.maximumNumber">100</option>
+        <option name="charting.axisY.minimumNumber">0</option>
+        <option name="charting.chart">column</option>
+        <option name="charting.drilldown">none</option>
+        <option name="charting.legend.placement">none</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
+    </panel>
+  </row>
+</form>

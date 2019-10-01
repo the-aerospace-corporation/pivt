@@ -1,0 +1,389 @@
+{
+    "modelName": "internal_server",
+    "displayName": "Internal Server Logs",
+    "description": "Splunk's Internal Server Logs record information about system usage and performance.",
+    "objectSummary": {
+        "Event-Based": 3,
+        "Transaction-Based": 0,
+        "Search-Based": 0
+    },
+    "objects": [
+        {
+            "objectName": "server",
+            "displayName": "Splunk Server",
+            "parentName": "BaseEvent",
+            "comment": "",
+            "fields": [
+                {
+                    "fieldName": "uri_path",
+                    "owner": "server",
+                    "type": "string",
+                    "fieldSearch": "",
+                    "required": false,
+                    "multivalue": false,
+                    "hidden": true,
+                    "editable": true,
+                    "displayName": "uri_path",
+                    "comment": ""
+                },
+                {
+                    "fieldName": "uri_query",
+                    "owner": "server",
+                    "type": "string",
+                    "fieldSearch": "",
+                    "required": false,
+                    "multivalue": false,
+                    "hidden": true,
+                    "editable": true,
+                    "displayName": "uri_query",
+                    "comment": ""
+                },
+                {
+                    "fieldName": "uri",
+                    "owner": "server",
+                    "type": "string",
+                    "fieldSearch": "",
+                    "required": false,
+                    "multivalue": false,
+                    "hidden": true,
+                    "editable": true,
+                    "displayName": "uri",
+                    "comment": ""
+                },
+                {
+                    "fieldName": "user",
+                    "owner": "server",
+                    "type": "string",
+                    "fieldSearch": "",
+                    "required": false,
+                    "multivalue": false,
+                    "hidden": true,
+                    "editable": true,
+                    "displayName": "user",
+                    "comment": ""
+                },
+                {
+                    "fieldName": "_time",
+                    "owner": "BaseEvent",
+                    "type": "timestamp",
+                    "fieldSearch": "",
+                    "required": false,
+                    "multivalue": false,
+                    "hidden": false,
+                    "editable": true,
+                    "displayName": "_time",
+                    "comment": ""
+                },
+                {
+                    "fieldName": "host",
+                    "owner": "BaseEvent",
+                    "type": "string",
+                    "fieldSearch": "",
+                    "required": false,
+                    "multivalue": false,
+                    "hidden": false,
+                    "editable": true,
+                    "displayName": "host",
+                    "comment": ""
+                },
+                {
+                    "fieldName": "source",
+                    "owner": "BaseEvent",
+                    "type": "string",
+                    "fieldSearch": "",
+                    "required": false,
+                    "multivalue": false,
+                    "hidden": false,
+                    "editable": true,
+                    "displayName": "source",
+                    "comment": ""
+                },
+                {
+                    "fieldName": "sourcetype",
+                    "owner": "BaseEvent",
+                    "type": "string",
+                    "fieldSearch": "",
+                    "required": false,
+                    "multivalue": false,
+                    "hidden": false,
+                    "editable": true,
+                    "displayName": "sourcetype",
+                    "comment": ""
+                }
+            ],
+            "calculations": [],
+            "constraints": [
+                {
+                    "search": "index=_internal source=*splunkd_ui_access.log* OR source=*splunkd_access.log*",
+                    "owner": "server"
+                }
+            ],
+            "lineage": "server"
+        },
+        {
+            "objectName": "ui_access",
+            "displayName": "UI Access",
+            "parentName": "server",
+            "comment": "",
+            "fields": [
+                {
+                    "fieldName": "uri_path",
+                    "owner": "server",
+                    "type": "string",
+                    "fieldSearch": "",
+                    "required": false,
+                    "multivalue": false,
+                    "hidden": true,
+                    "editable": true,
+                    "displayName": "uri_path",
+                    "comment": ""
+                },
+                {
+                    "fieldName": "uri_query",
+                    "owner": "server",
+                    "type": "string",
+                    "fieldSearch": "",
+                    "required": false,
+                    "multivalue": false,
+                    "hidden": true,
+                    "editable": true,
+                    "displayName": "uri_query",
+                    "comment": ""
+                },
+                {
+                    "fieldName": "uri",
+                    "owner": "server",
+                    "type": "string",
+                    "fieldSearch": "uri=*",
+                    "required": true,
+                    "multivalue": false,
+                    "hidden": false,
+                    "editable": true,
+                    "displayName": "uri",
+                    "comment": ""
+                },
+                {
+                    "fieldName": "user",
+                    "owner": "server",
+                    "type": "string",
+                    "fieldSearch": "",
+                    "required": false,
+                    "multivalue": false,
+                    "hidden": true,
+                    "editable": true,
+                    "displayName": "user",
+                    "comment": ""
+                },
+                {
+                    "fieldName": "_time",
+                    "owner": "BaseEvent",
+                    "type": "timestamp",
+                    "fieldSearch": "",
+                    "required": false,
+                    "multivalue": false,
+                    "hidden": false,
+                    "editable": true,
+                    "displayName": "_time",
+                    "comment": ""
+                },
+                {
+                    "fieldName": "host",
+                    "owner": "BaseEvent",
+                    "type": "string",
+                    "fieldSearch": "",
+                    "required": false,
+                    "multivalue": false,
+                    "hidden": false,
+                    "editable": true,
+                    "displayName": "host",
+                    "comment": ""
+                },
+                {
+                    "fieldName": "source",
+                    "owner": "BaseEvent",
+                    "type": "string",
+                    "fieldSearch": "",
+                    "required": false,
+                    "multivalue": false,
+                    "hidden": false,
+                    "editable": true,
+                    "displayName": "source",
+                    "comment": ""
+                },
+                {
+                    "fieldName": "sourcetype",
+                    "owner": "BaseEvent",
+                    "type": "string",
+                    "fieldSearch": "",
+                    "required": false,
+                    "multivalue": false,
+                    "hidden": false,
+                    "editable": true,
+                    "displayName": "sourcetype",
+                    "comment": ""
+                }
+            ],
+            "calculations": [
+                {
+                    "outputFields": [
+                        {
+                            "fieldName": "app",
+                            "owner": "server.ui_access",
+                            "type": "string",
+                            "fieldSearch": "",
+                            "required": false,
+                            "multivalue": false,
+                            "hidden": false,
+                            "editable": true,
+                            "displayName": "app",
+                            "comment": ""
+                        },
+                        {
+                            "fieldName": "dashboard",
+                            "owner": "server.ui_access",
+                            "type": "string",
+                            "fieldSearch": "",
+                            "required": false,
+                            "multivalue": false,
+                            "hidden": false,
+                            "editable": true,
+                            "displayName": "dashboard",
+                            "comment": ""
+                        }
+                    ],
+                    "inputField": "uri",
+                    "calculationID": "17ziqh6qhz6",
+                    "owner": "server.ui_access",
+                    "editable": true,
+                    "comment": "",
+                    "calculationType": "Rex",
+                    "expression": "/en-US/app/(?<app>[^/]+)/(?<dashboard>[^?/\\s]+)"
+                }
+            ],
+            "constraints": [
+                {
+                    "search": "source=*splunkd_ui_access.log*",
+                    "owner": "server.ui_access"
+                }
+            ],
+            "lineage": "server.ui_access"
+        },
+        {
+            "objectName": "access",
+            "displayName": "Access",
+            "parentName": "server",
+            "comment": "",
+            "fields": [
+                {
+                    "fieldName": "uri_path",
+                    "owner": "server",
+                    "type": "string",
+                    "fieldSearch": "",
+                    "required": false,
+                    "multivalue": false,
+                    "hidden": true,
+                    "editable": true,
+                    "displayName": "uri_path",
+                    "comment": ""
+                },
+                {
+                    "fieldName": "uri_query",
+                    "owner": "server",
+                    "type": "string",
+                    "fieldSearch": "",
+                    "required": false,
+                    "multivalue": false,
+                    "hidden": true,
+                    "editable": true,
+                    "displayName": "uri_query",
+                    "comment": ""
+                },
+                {
+                    "fieldName": "uri",
+                    "owner": "server",
+                    "type": "string",
+                    "fieldSearch": "",
+                    "required": false,
+                    "multivalue": false,
+                    "hidden": true,
+                    "editable": true,
+                    "displayName": "uri",
+                    "comment": ""
+                },
+                {
+                    "fieldName": "user",
+                    "owner": "server",
+                    "type": "string",
+                    "fieldSearch": "user=*",
+                    "required": true,
+                    "multivalue": false,
+                    "hidden": false,
+                    "editable": true,
+                    "displayName": "user",
+                    "comment": ""
+                },
+                {
+                    "fieldName": "_time",
+                    "owner": "BaseEvent",
+                    "type": "timestamp",
+                    "fieldSearch": "",
+                    "required": false,
+                    "multivalue": false,
+                    "hidden": false,
+                    "editable": true,
+                    "displayName": "_time",
+                    "comment": ""
+                },
+                {
+                    "fieldName": "host",
+                    "owner": "BaseEvent",
+                    "type": "string",
+                    "fieldSearch": "",
+                    "required": false,
+                    "multivalue": false,
+                    "hidden": false,
+                    "editable": true,
+                    "displayName": "host",
+                    "comment": ""
+                },
+                {
+                    "fieldName": "source",
+                    "owner": "BaseEvent",
+                    "type": "string",
+                    "fieldSearch": "",
+                    "required": false,
+                    "multivalue": false,
+                    "hidden": false,
+                    "editable": true,
+                    "displayName": "source",
+                    "comment": ""
+                },
+                {
+                    "fieldName": "sourcetype",
+                    "owner": "BaseEvent",
+                    "type": "string",
+                    "fieldSearch": "",
+                    "required": false,
+                    "multivalue": false,
+                    "hidden": false,
+                    "editable": true,
+                    "displayName": "sourcetype",
+                    "comment": ""
+                }
+            ],
+            "calculations": [],
+            "constraints": [
+                {
+                    "search": "source=*splunkd_access.log*",
+                    "owner": "server.access"
+                }
+            ],
+            "lineage": "server.access"
+        }
+    ],
+    "objectNameList": [
+        "server",
+        "ui_access",
+        "access"
+    ]
+}

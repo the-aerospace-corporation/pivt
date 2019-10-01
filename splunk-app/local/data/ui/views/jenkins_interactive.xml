@@ -1,0 +1,1765 @@
+<form>
+  <label>Jenkins - Interactive</label>
+  <description>PIVT Version: 0.1.2.19.1 --- Last pull date: None</description>
+  <search id="baseSearch">
+    <query>index=pivt_jenkins stage!=Pipeline `pipeline($pipeline$)`
+| rename pipeline_properties.%%ci33%%_BUILD_TYPE as %%ci33%%_BUILD_TYPE, pipeline_properties.%%ci33%%_BUILD_VERSION as %%ci33%%_BUILD_VERSION, pipeline_properties.%%ci21%%_BUILD_VERSION as %%ci21%%_BUILD_VERSION, pipeline_properties.%%ci22%%_BUILD_VERSION as %%ci22%%_BUILD_VERSION
+| fillnull value="-" %%ci33%%_BUILD_TYPE %%ci33%%_BUILD_VERSION, %%ci21%%_BUILD_VERSION, %%ci22%%_BUILD_VERSION
+| eval %%ci33%%_BUILD_TYPE = if(%%ci33%%_BUILD_TYPE == "", "-", replace(%%ci33%%_BUILD_TYPE, ",", "\c"))
+| eval %%ci33%%_BUILD_VERSION = if(%%ci33%%_BUILD_VERSION == "", "-", replace(%%ci33%%_BUILD_VERSION, ",", "\c"))
+| eval %%ci21%%_BUILD_VERSION = if(%%ci21%%_BUILD_VERSION == "", "-", replace(%%ci21%%_BUILD_VERSION, ",", "\c"))
+| eval %%ci22%%_BUILD_VERSION = if(%%ci22%%_BUILD_VERSION == "", "-", replace(%%ci22%%_BUILD_VERSION, ",", "\c"))
+| fillnull value=0 passCount failCount skipCount totalCount
+| eval build = _time . "," . instance . "," . ci . "," . ss . "," . stage . "," . iteration . "," . release . "," . number . "," . derived_cause . "," . duration . "," . result . "," . %%ci33%%_BUILD_TYPE . "," . %%ci33%%_BUILD_VERSION . "," . %%ci21%%_BUILD_VERSION . "," . %%ci22%%_BUILD_VERSION . "," . passCount . "," . failCount . "," . skipCount . "," . totalCount
+| fields PIPELINE_URL build
+| `combine_with_pipelines`
+| search `nominal($nominal$)`
+| mvexpand build
+| where isnotnull(build)
+| eval build = split(build, ",")
+| eval _time = mvindex(build, 0), instance = mvindex(build, 1), ci = mvindex(build, 2), ss = mvindex(build, 3), stage = mvindex(build, 4), iteration = mvindex(build, 5), release = mvindex(build, 6), number = mvindex(build, 7), derived_cause = mvindex(build, 8), duration = mvindex(build, 9), result = mvindex(build, 10), %%ci33%%_BUILD_TYPE = replace(mvindex(build, 11), "\\\c", ","), %%ci33%%_BUILD_VERSION = replace(mvindex(build, 12), "\\\c", ","), %%ci21%%_BUILD_VERSION = replace(mvindex(build, 13), "\\\c", ","), %%ci22%%_BUILD_VERSION = replace(mvindex(build, 14), "\\\c", ","), passCount = mvindex(build, 15), failCount = mvindex(build, 16), skipCount = mvindex(build, 17), totalCount = mvindex(build, 18)
+| fields - build
+| fields _time *</query>
+    <earliest>$timeWindow.earliest$</earliest>
+    <latest>$timeWindow.latest$</latest>
+  </search>
+  <search id="filtersSearch" base="baseSearch">
+    <query>| stats count by instance, ss, ci, stage, iteration, release, derived_cause, %%ci33%%_BUILD_TYPE, %%ci33%%_BUILD_VERSION, %%ci21%%_BUILD_VERSION, %%ci22%%_BUILD_VERSION</query>
+  </search>
+  <search id="stagesBaseSearch" base="baseSearch">
+    <query>| join type=outer _time instance ci stage release number
+    [| inputlookup pivt_jenkins_ttr.csv]
+| search `nominal($nominal$)`
+| search instance=$instance$ $ss$ $ci$ $iteration$ $release$ $cause$ $ins_build$ $ins_version$ $dms_version$ $eis_version$</query>
+  </search>
+  <search id="buildBaseSearch" base="stagesBaseSearch">
+    <query>| search stage=Build</query>
+  </search>
+  <search id="utBaseSearch" base="stagesBaseSearch">
+    <query>| search stage=UnitTest</query>
+  </search>
+  <search id="packageBaseSearch" base="stagesBaseSearch">
+    <query>| search stage=Package</query>
+  </search>
+  <search id="provisionBaseSearch" base="stagesBaseSearch">
+    <query>| search stage=Provision</query>
+  </search>
+  <search id="stageBaseSearch" base="stagesBaseSearch">
+    <query>| search stage=Stage</query>
+  </search>
+  <search id="awsDeployBaseSearch" base="stagesBaseSearch">
+    <query>| search stage=AWS_Deploy</query>
+  </search>
+  <search id="awsFtBaseSearch" base="stagesBaseSearch">
+    <query>| search stage=AWS_FunctionalTest</query>
+  </search>
+  <search id="ftBaseSearch">
+    <query>| savedsearch "PIVT Jenkins FT Features" instance="$instance$" nominal="$nominal$"
+| search $ci$ $release$ $cause$ $ins_build$ $ins_version$ $dms_version$ $eis_version$ `pipeline($pipeline$)`</query>
+    <earliest>$timeWindow.earliest$</earliest>
+    <latest>$timeWindow.latest$</latest>
+  </search>
+  <search id="scenBaseSearch">
+    <query>| savedsearch "PIVT Jenkins FT Scenarios" instance="$instance$" nominal="$nominal$" tag=""
+| join type=outer _time instance ci release number
+    [| inputlookup pivt_jenkins_ttr.csv where stage=AWS_FunctionalTest
+    | fields - stage]
+| search $ci$ $release$ $cause$ $ins_build$ $ins_version$ $dms_version$ $eis_version$ `pipeline($pipeline$)`</query>
+    <earliest>$timeWindow.earliest$</earliest>
+    <latest>$timeWindow.latest$</latest>
+  </search>
+  <fieldset submitButton="true" autoRun="true">
+    <input type="multiselect" token="ss" searchWhenChanged="false" id="multiinput1">
+      <label>SS</label>
+      <choice value="*">All</choice>
+      <default>*</default>
+      <fieldForLabel>ss</fieldForLabel>
+      <fieldForValue>ss</fieldForValue>
+      <search base="filtersSearch">
+        <query>| search instance=$instance$ $ci$ $stage$ $iteration$ $release$ $cause$ $ins_build$ $ins_version$ $dms_version$ $eis_version$ | stats count by ss</query>
+      </search>
+      <initialValue>*</initialValue>
+      <prefix>(</prefix>
+      <suffix>)</suffix>
+      <valuePrefix>ss="</valuePrefix>
+      <valueSuffix>"</valueSuffix>
+      <delimiter> OR </delimiter>
+    </input>
+    <input type="multiselect" token="ci" searchWhenChanged="false" id="multiinput2">
+      <label>CI</label>
+      <choice value="*">All</choice>
+      <default>*</default>
+      <initialValue>*</initialValue>
+      <prefix>(</prefix>
+      <suffix>)</suffix>
+      <fieldForLabel>ci</fieldForLabel>
+      <fieldForValue>ci</fieldForValue>
+      <search base="filtersSearch">
+        <query>| search instance=$instance$ $ss$ $stage$ $iteration$ $release$ $cause$ $ins_build$ $ins_version$ $dms_version$ $eis_version$ | stats count by ci</query>
+      </search>
+      <change>
+        <set token="ciLabel">$label$</set>
+      </change>
+      <valuePrefix>ci="</valuePrefix>
+      <valueSuffix>"</valueSuffix>
+      <delimiter> OR </delimiter>
+    </input>
+    <input type="dropdown" token="stage" searchWhenChanged="false">
+      <label>Stage</label>
+      <fieldForLabel>stage</fieldForLabel>
+      <fieldForValue>stage</fieldForValue>
+      <search base="filtersSearch">
+        <query>| search instance=$instance$ $ss$ $ci$ $iteration$ $release$ $cause$ $ins_build$ $ins_version$ $dms_version$ $eis_version$ | stats count by stage</query>
+      </search>
+      <change>
+        <set token="stageLabel">$label$</set>
+      </change>
+      <change>
+        <condition label="All">
+          <set token="allstages"></set>
+          <set token="build"></set>
+          <set token="ut"></set>
+          <set token="package"></set>
+          <set token="provision"></set>
+          <set token="stg"></set>
+          <set token="deploy"></set>
+          <set token="ft"></set>
+          <set token="awsdeploy"></set>
+          <set token="awsft"></set>
+        </condition>
+        <condition label="Build">
+          <unset token="allstages"></unset>
+          <set token="build"></set>
+          <unset token="ut"></unset>
+          <unset token="package"></unset>
+          <unset token="provision"></unset>
+          <unset token="stg"></unset>
+          <unset token="deploy"></unset>
+          <unset token="ft"></unset>
+          <unset token="awsdeploy"></unset>
+          <unset token="awsft"></unset>
+        </condition>
+        <condition label="UnitTest">
+          <unset token="allstages"></unset>
+          <unset token="build"></unset>
+          <set token="ut"></set>
+          <unset token="package"></unset>
+          <unset token="provision"></unset>
+          <unset token="stg"></unset>
+          <unset token="deploy"></unset>
+          <unset token="ft"></unset>
+          <unset token="awsdeploy"></unset>
+          <unset token="awsft"></unset>
+        </condition>
+        <condition label="Package">
+          <unset token="allstages"></unset>
+          <unset token="build"></unset>
+          <unset token="ut"></unset>
+          <set token="package"></set>
+          <unset token="provision"></unset>
+          <unset token="stg"></unset>
+          <unset token="deploy"></unset>
+          <unset token="ft"></unset>
+          <unset token="awsdeploy"></unset>
+          <unset token="awsft"></unset>
+        </condition>
+        <condition label="Provision">
+          <unset token="allstages"></unset>
+          <unset token="build"></unset>
+          <unset token="ut"></unset>
+          <unset token="package"></unset>
+          <set token="provision"></set>
+          <unset token="stg"></unset>
+          <unset token="deploy"></unset>
+          <unset token="ft"></unset>
+          <unset token="awsdeploy"></unset>
+          <unset token="awsft"></unset>
+        </condition>
+        <condition label="Stage">
+          <unset token="allstages"></unset>
+          <unset token="build"></unset>
+          <unset token="ut"></unset>
+          <unset token="package"></unset>
+          <unset token="provision"></unset>
+          <set token="stg"></set>
+          <unset token="deploy"></unset>
+          <unset token="ft"></unset>
+          <unset token="awsdeploy"></unset>
+          <unset token="awsft"></unset>
+        </condition>
+        <condition label="Deploy">
+          <unset token="allstages"></unset>
+          <unset token="build"></unset>
+          <unset token="ut"></unset>
+          <unset token="package"></unset>
+          <unset token="provision"></unset>
+          <unset token="stg"></unset>
+          <set token="deploy"></set>
+          <unset token="ft"></unset>
+          <unset token="awsdeploy"></unset>
+          <unset token="awsft"></unset>
+        </condition>
+        <condition label="FunctionalTest">
+          <unset token="allstages"></unset>
+          <unset token="build"></unset>
+          <unset token="ut"></unset>
+          <unset token="package"></unset>
+          <unset token="provision"></unset>
+          <unset token="stg"></unset>
+          <unset token="deploy"></unset>
+          <set token="ft"></set>
+          <unset token="awsdeploy"></unset>
+          <unset token="awsft"></unset>
+        </condition>
+        <condition label="AWS_Deploy">
+          <unset token="allstages"></unset>
+          <unset token="build"></unset>
+          <unset token="ut"></unset>
+          <unset token="package"></unset>
+          <unset token="provision"></unset>
+          <unset token="stg"></unset>
+          <unset token="deploy"></unset>
+          <unset token="ft"></unset>
+          <set token="awsdeploy"></set>
+          <unset token="awsft"></unset>
+        </condition>
+        <condition label="AWS_FunctionalTest">
+          <unset token="allstages"></unset>
+          <unset token="build"></unset>
+          <unset token="ut"></unset>
+          <unset token="package"></unset>
+          <unset token="provision"></unset>
+          <unset token="stg"></unset>
+          <unset token="deploy"></unset>
+          <unset token="ft"></unset>
+          <unset token="awsdeploy"></unset>
+          <set token="awsft"></set>
+        </condition>
+      </change>
+      <choice value="*">All</choice>
+      <default>*</default>
+      <initialValue>*</initialValue>
+      <prefix>stage="</prefix>
+      <suffix>"</suffix>
+    </input>
+    <input type="dropdown" token="instance" searchWhenChanged="false" id="multiinput4">
+      <label>Instance</label>
+      <fieldForLabel>instance</fieldForLabel>
+      <fieldForValue>instance</fieldForValue>
+      <search base="filtersSearch">
+        <query>| search $ss$ $ci$ $stage$ $iteration$ $release$ $cause$ $ins_build$ $ins_version$ $dms_version$ $eis_version$ | stats count by instance</query>
+      </search>
+      <choice value="*">All</choice>
+      <default>Production</default>
+      <initialValue>Production</initialValue>
+    </input>
+    <input type="multiselect" token="iteration" id="multiinput5">
+      <label>Iteration</label>
+      <choice value="*">All</choice>
+      <default>*</default>
+      <initialValue>*</initialValue>
+      <prefix>(</prefix>
+      <suffix>)</suffix>
+      <fieldForLabel>iteration</fieldForLabel>
+      <fieldForValue>iteration</fieldForValue>
+      <search base="filtersSearch">
+        <query>| search instance=$instance$ $ss$ $ci$ $stage$ $release$ $cause$ $ins_build$ $ins_version$ $dms_version$ $eis_version$ | stats count by iteration</query>
+      </search>
+      <valuePrefix>iteration="</valuePrefix>
+      <valueSuffix>"</valueSuffix>
+      <delimiter> OR </delimiter>
+    </input>
+    <input type="multiselect" token="cause" id="multiinput6">
+      <label>Cause</label>
+      <choice value="*">All</choice>
+      <default>*</default>
+      <initialValue>*</initialValue>
+      <prefix>(</prefix>
+      <suffix>)</suffix>
+      <fieldForLabel>derived_cause</fieldForLabel>
+      <fieldForValue>derived_cause</fieldForValue>
+      <search base="filtersSearch">
+        <query>| search instance=$instance$ $ss$ $ci$ $stage$ $iteration$ $release$ $ins_build$ $ins_version$ $dms_version$ $eis_version$ | stats count by derived_cause</query>
+      </search>
+      <valuePrefix>derived_cause="</valuePrefix>
+      <valueSuffix>"</valueSuffix>
+      <delimiter> OR </delimiter>
+    </input>
+    <input type="multiselect" token="release" id="multiinput7">
+      <label>Release</label>
+      <choice value="*">All</choice>
+      <default>*</default>
+      <initialValue>*</initialValue>
+      <prefix>(</prefix>
+      <suffix>)</suffix>
+      <fieldForLabel>release</fieldForLabel>
+      <fieldForValue>release</fieldForValue>
+      <search base="filtersSearch">
+        <query>| search instance=$instance$ $ss$ $ci$ $stage$ $iteration$ $cause$ $ins_build$ $ins_version$ $dms_version$ $eis_version$ | stats count by release</query>
+      </search>
+      <valuePrefix>release="</valuePrefix>
+      <valueSuffix>"</valueSuffix>
+      <delimiter> OR </delimiter>
+    </input>
+    <input type="dropdown" token="pipeline">
+      <label>Pipeline</label>
+      <choice value="all">All</choice>
+      <choice value="standard">Blob</choice>
+      <choice value="p-release">P-Release</choice>
+      <default>all</default>
+      <initialValue>all</initialValue>
+    </input>
+    <input type="dropdown" token="nominal">
+      <label>Reference Run</label>
+      <choice value="all">All</choice>
+      <choice value="yes">Yes</choice>
+      <choice value="no">No</choice>
+      <default>all</default>
+      <initialValue>all</initialValue>
+    </input>
+    <input type="multiselect" token="ins_build" id="multiinput8" searchWhenChanged="false">
+      <label>%%ci33%% Build</label>
+      <choice value="*">All</choice>
+      <default>*</default>
+      <initialValue>*</initialValue>
+      <fieldForLabel>%%ci33%%_BUILD_TYPE</fieldForLabel>
+      <fieldForValue>%%ci33%%_BUILD_TYPE</fieldForValue>
+      <search base="filtersSearch">
+        <query>| search instance=$instance$ $ss$ $ci$ $stage$ $iteration$ $release$ $cause$ $ins_version$ $dms_version$ $eis_version$
+  | stats count by %%ci33%%_BUILD_TYPE</query>
+      </search>
+      <prefix>(</prefix>
+      <suffix>)</suffix>
+      <valuePrefix>%%ci33%%_BUILD_TYPE="</valuePrefix>
+      <valueSuffix>"</valueSuffix>
+      <delimiter> OR </delimiter>
+    </input>
+    <input type="multiselect" token="ins_version" id="multiinput9" searchWhenChanged="false">
+      <label>%%ci33%% Version</label>
+      <choice value="*">All</choice>
+      <default>*</default>
+      <initialValue>*</initialValue>
+      <fieldForLabel>%%ci33%%_BUILD_VERSION</fieldForLabel>
+      <fieldForValue>%%ci33%%_BUILD_VERSION</fieldForValue>
+      <search base="filtersSearch">
+        <query>| search instance=$instance$ $ss$ $ci$ $stage$ $iteration$ $release$ $cause$ $ins_build$ $dms_version$ $eis_version$
+| stats count by %%ci33%%_BUILD_VERSION</query>
+      </search>
+      <prefix>(</prefix>
+      <suffix>)</suffix>
+      <valuePrefix>%%ci33%%_BUILD_VERSION="</valuePrefix>
+      <valueSuffix>"</valueSuffix>
+      <delimiter> OR </delimiter>
+    </input>
+    <input type="multiselect" token="dms_version" id="multiinput10" searchWhenChanged="false">
+      <label>%%ci21%% Version</label>
+      <choice value="*">All</choice>
+      <default>*</default>
+      <initialValue>*</initialValue>
+      <fieldForLabel>%%ci21%%_BUILD_VERSION</fieldForLabel>
+      <fieldForValue>%%ci21%%_BUILD_VERSION</fieldForValue>
+      <search base="filtersSearch">
+        <query>| search instance=$instance$ $ss$ $ci$ $stage$ $iteration$ $release$ $cause$ $ins_build$ $ins_version$ $eis_version$
+| stats count by %%ci21%%_BUILD_VERSION</query>
+      </search>
+      <prefix>(</prefix>
+      <suffix>)</suffix>
+      <valuePrefix>%%ci21%%_BUILD_VERSION="</valuePrefix>
+      <valueSuffix>"</valueSuffix>
+      <delimiter> OR </delimiter>
+    </input>
+    <input type="multiselect" token="eis_version" id="multiinput11" searchWhenChanged="false">
+      <label>%%ci22%% Version</label>
+      <choice value="*">All</choice>
+      <default>*</default>
+      <initialValue>*</initialValue>
+      <fieldForLabel>%%ci22%%_BUILD_VERSION</fieldForLabel>
+      <fieldForValue>%%ci22%%_BUILD_VERSION</fieldForValue>
+      <search base="filtersSearch">
+        <query>| search instance=$instance$ $ss$ $ci$ $stage$ $iteration$ $release$ $cause$ $ins_build$ $ins_version$ $dms_version$
+| stats count by %%ci22%%_BUILD_VERSION</query>
+      </search>
+      <prefix>(</prefix>
+      <suffix>)</suffix>
+      <valuePrefix>%%ci22%%_BUILD_VERSION="</valuePrefix>
+      <valueSuffix>"</valueSuffix>
+      <delimiter> OR </delimiter>
+    </input>
+    <input type="time" token="timeWindow">
+      <label></label>
+      <default>
+        <earliest>-7d@h</earliest>
+        <latest>now</latest>
+      </default>
+    </input>
+  </fieldset>
+  <row>
+    <panel>
+      <html>
+        <h4>Notes:</h4>
+        <ul>
+          <li>Platform build and versioning filters (%%ci33%% Build, %%ci33%% Version, %%ci21%% Version, and %%ci22%% Version) are not to be used until complete data is provided by the automation team.</li>
+          <li>Blob pipeline produces blob images. P-Release pipeline produces Engineering Releases, Release Candidates, P-Releases, etc.</li>
+        </ul>
+        <h4>%%ci33%% build types as of May 8, 2019:</h4>
+        <ul>
+          <li><i>BLOB:</i> Completely manually created. Use of these images is deprecated. None of the types below use a BLOB image in their pedigree.</li>
+          <li><i>P-Release:</i> Created in an automated fashion via the Platform Pipelines. This is also used for output of the %%ci21%% and %%ci22%% pipeline builds which have only a P-Release Platform image in their pedigree.</li>
+          <li><i>Engineering-Release:</i> A release image that has in its pedigree a Platform image that has had manual changes made to it.</li>
+          <li><i>Hot Fix:</i> An Engineering-Release Platform image that has had changes made to fix immediate problems experienced by at least one CI.</li>
+          <li><i>Release-Candidate:</i> An Engineering-Release image that has had manual changes made, usually for product testing.</li>
+          <li><i>One-Off:</i> An image that does not fit any of the above categories. This may include an image created especially for one person to test something. However, the types listed here are currently inferred by the name of the image, so any image whose name does not conform to the naming conventions will come under this category.</li>
+        </ul>
+      </html>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$none$">
+      <table>
+        <search>
+          <query>| gentimes start=-1
+| addinfo
+| eval range = info_max_time - info_min_time
+| eval span_line = "span=" . case(range &lt; 5*24*3600+3600, "6h", range &lt; 21*24*3600+3600, "1d", range &lt; 3*31*24*3600+3600, "1w", 1=1, "1month")
+| eval span_col = "span=" . case(range &lt; 24*3600+3600, "1h", range &lt; 7*24*3600+3600, "1d", range &lt; 2*31*24*3600+3600, "1d", 1=1, "1w")
+| fields span_line span_col</query>
+          <earliest>$timeWindow.earliest$</earliest>
+          <latest>$timeWindow.latest$</latest>
+          <finalized>
+            <set token="span_line">$result.span_line$</set>
+            <set token="span_col">$result.span_col$</set>
+          </finalized>
+        </search>
+        <option name="count">10</option>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$build$, $showbuild$">
+      <title>Builds</title>
+      <table>
+        <search base="buildBaseSearch">
+          <query>| fillnull value="-" ttr
+| eval duration = if(result=="SUCCESS", duration, null())
+| stats count as Count, earliest(_time) as earliest, latest(_time) as latest, avg(duration) as avgSuccessDuration, avg(ttr) as mttr, sum(eval(result=="SUCCESS")) as SUCCESS, sum(eval(result=="FAILURE")) as FAILURE, sum(eval(result=="ABORTED")) as ABORTED, sum(eval(result=="UNSTABLE")) as UNSTABLE by ci
+| rename ci as CI
+| addinfo
+| eval Earliest=strftime(earliest, "%m/%d/%Y")
+| eval Latest=strftime(latest, "%m/%d/%Y")
+| eval windowEarliest = if(info_min_time == 0, earliest, info_min_time)
+| eval windowLatest = if(info_max_time == "+Infinity", latest, info_max_time)
+| eval "Runs/Day"=coalesce(round(Count/ceiling((windowLatest - windowEarliest)/86400), 2), 1)
+| eval "Avg Success Duration (h)"=round(avgSuccessDuration/1000/60/60, 2)
+| fillnull value="--------" "Avg Success Duration (h)"
+| fillnull ABORTED UNSTABLE SUCCESS FAILURE
+| eval ABORTED=round(ABORTED/Count*100, 2)."%"
+| eval SUCCESS=round(SUCCESS/Count*100, 2)."%"
+| eval FAILURE=round(FAILURE/Count*100, 2)."%"
+| eval UNSTABLE=round(UNSTABLE/Count*100, 2)."%"
+| eval "MTTR (h)" = case(SUCCESS == "100.00%", 0, SUCCESS == "0.00%", "--------", true(), round(mttr/60/60, 2))
+| table CI Count Earliest Latest "Runs/Day" "MTTR (h)" "Avg Success Duration (h)" SUCCESS FAILURE ABORTED UNSTABLE</query>
+        </search>
+        <option name="count">20</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$build$, $showbuild$">
+      <chart>
+        <title>Build Results</title>
+        <search base="buildBaseSearch">
+          <query>| timechart $span_col$ count by result</query>
+          <progress>
+            <condition match="'job.resultCount' &gt; 0">
+              <set token="showbuild">true</set>
+            </condition>
+            <condition>
+              <unset token="showbuild"></unset>
+            </condition>
+          </progress>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.axisTitleY.text">Number of Builds</option>
+        <option name="charting.chart">column</option>
+        <option name="charting.chart.showDataLabels">none</option>
+        <option name="charting.chart.stackMode">stacked</option>
+        <option name="charting.fieldColors">{"ABORTED": 0x000000, "FAILURE": 0xff0000, "SUCCESS":0x00cc00, "UNSTABLE": 0xffff00}</option>
+        <option name="charting.legend.placement">right</option>
+        <option name="refresh.display">progressbar</option>
+        <drilldown>
+          <eval token="drilldown.latest">$earliest$ + 86400</eval>
+          <link target="_blank">/app/pivt/search?q=index=pivt_jenkins stage=build ss="$ss$" ci="$ci$" instance="$instance$" iteration="$iteration$" derived_cause="$cause$" BASELINE_VERSION="$release$" result=$click.name2$ | table _time ss ci stage number result duration ttr instance iteration&amp;earliest=$earliest$&amp;latest=$drilldown.latest$</link>
+        </drilldown>
+      </chart>
+    </panel>
+    <panel depends="$build$, $showbuild$">
+      <chart>
+        <title>Build Time To Repair (TTR)</title>
+        <search base="buildBaseSearch">
+          <query>| timechart $span_line$ avg(ttr) as ttr
+| eval ttr = ttr/60/60
+| where ttr &gt; 0
+| `lineartrend(_time, ttr)`
+| timechart $span_line$ values(ttr) as TTR, values(newY) as Trend
+| table _time TTR Trend</query>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.axisTitleY.text">TTR (hours)</option>
+        <option name="charting.axisY.minimumNumber">0</option>
+        <option name="charting.chart">line</option>
+        <option name="charting.chart.nullValueMode">connect</option>
+        <option name="charting.drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$build$, $showbuild$">
+      <chart>
+        <title>Build Success Trend</title>
+        <search base="buildBaseSearch">
+          <query>| timechart $span_line$ count by result
+| fillnull SUCCESS
+| addtotals
+| eval rate = SUCCESS / Total * 100
+| where rate &gt; 0
+| `lineartrend(_time, rate)`
+| timechart $span_line$ values(rate) as "Success Rate", values(newY) as Trend
+| table _time "Success Rate" Trend</query>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.overflowMode">ellipsisNone</option>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.axisTitleY.text">Success Rate (%)</option>
+        <option name="charting.axisTitleY.visibility">visible</option>
+        <option name="charting.axisTitleY2.visibility">visible</option>
+        <option name="charting.axisX.scale">linear</option>
+        <option name="charting.axisY.maximumNumber">100</option>
+        <option name="charting.axisY.minimumNumber">0</option>
+        <option name="charting.axisY.scale">linear</option>
+        <option name="charting.axisY2.enabled">0</option>
+        <option name="charting.axisY2.scale">inherit</option>
+        <option name="charting.chart">line</option>
+        <option name="charting.chart.bubbleMaximumSize">50</option>
+        <option name="charting.chart.bubbleMinimumSize">10</option>
+        <option name="charting.chart.bubbleSizeBy">area</option>
+        <option name="charting.chart.nullValueMode">connect</option>
+        <option name="charting.chart.showDataLabels">none</option>
+        <option name="charting.chart.sliceCollapsingThreshold">0.01</option>
+        <option name="charting.chart.stackMode">default</option>
+        <option name="charting.chart.style">shiny</option>
+        <option name="charting.drilldown">none</option>
+        <option name="charting.layout.splitSeries">0</option>
+        <option name="charting.layout.splitSeries.allowIndependentYRanges">0</option>
+        <option name="charting.legend.labelStyle.overflowMode">ellipsisMiddle</option>
+        <option name="charting.legend.placement">right</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="trellis.enabled">0</option>
+        <option name="trellis.scales.shared">1</option>
+        <option name="trellis.size">medium</option>
+      </chart>
+    </panel>
+    <panel depends="$build$, $showbuild$">
+      <chart>
+        <title>Build Time Trend</title>
+        <search base="buildBaseSearch">
+          <query>| search result=SUCCESS
+| timechart $span_line$ avg(duration) as avgDuration
+| eval Time = avgDuration / 1000
+| where Time &gt; 0
+| `lineartrend(_time, Time)`
+| timechart $span_line$ values(Time) as Time, values(newY) as Trend
+| table _time Time Trend</query>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.overflowMode">ellipsisNone</option>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.axisTitleY.text">Build Time (seconds)</option>
+        <option name="charting.axisY.minimumNumber">0</option>
+        <option name="charting.chart">line</option>
+        <option name="charting.chart.nullValueMode">connect</option>
+        <option name="charting.chart.showDataLabels">none</option>
+        <option name="charting.drilldown">none</option>
+        <option name="charting.layout.splitSeries">0</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$ut$, $showut$">
+      <title>Unit Tests</title>
+      <table>
+        <search base="utBaseSearch">
+          <query>| eval successDuration = if(result=="SUCCESS" OR result=="UNSTABLE", duration, null())
+| eval totalCount = passCount + failCount
+| stats count as Count, earliest(_time) as earliest, latest(_time) as latest, avg(ttr) as mttr, avg(totalCount) as totalCountAvg, avg(passCount) as passCountAvg, avg(skipCount) as skipCountAvg, avg(successDuration) as avgSuccessDuration by ci
+| rename ci as CI
+| addinfo
+| eval Earliest=strftime(earliest, "%m/%d/%Y")
+| eval Latest=strftime(latest, "%m/%d/%Y")
+| eval windowEarliest = if(info_min_time == 0, earliest, info_min_time)
+| eval windowLatest = if(info_max_time == "+Infinity", latest, info_max_time)
+| eval "Runs/Day"=coalesce(round(Count/ceiling((windowLatest - windowEarliest)/86400), 2), 1)
+| eval "Avg # of Tests Executed" = round(totalCountAvg)
+| eval passRate = passCountAvg / totalCountAvg
+| eval "Pass Rate" = round(passRate * 100, 3)."%"
+| eval "Avg # Skipped Tests" = round(skipCountAvg)
+| eval "Avg Success Duration (h)"=round(avgSuccessDuration/1000/60/60, 2)
+| eval "MTTR (h)" = if(passRate == 1, 0, round(mttr/60/60, 2))
+| fillnull value="--------" "MTTR (h)"
+| fillnull value="--------" "Avg # of Tests"
+| fillnull value="--------" "Pass Rate"
+| fillnull value="--------" "Avg Success Duration (h)"
+| table CI Count Earliest Latest "Runs/Day" "MTTR (h)" "Avg Success Duration (h)" "Avg # of Tests Executed" "Pass Rate" "Avg # Skipped Tests"</query>
+        </search>
+        <option name="count">20</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$ut$, $showut$">
+      <chart>
+        <title>Unit Test Execution Count Over Time</title>
+        <search base="utBaseSearch">
+          <query>| rename totalCount as Total
+| eval Fail = failCount, Pass = passCount, Skip = skipCount
+| append
+    [makeresults
+    | addinfo
+    | eval _time = info_min_time
+    | timechart $span_col$ count]
+| table _time Pass Skip Fail</query>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.axisTitleY.text">Number of Tests</option>
+        <option name="charting.axisTitleY2.visibility">visible</option>
+        <option name="charting.axisY.scale">linear</option>
+        <option name="charting.axisY2.abbreviation">none</option>
+        <option name="charting.axisY2.enabled">0</option>
+        <option name="charting.axisY2.scale">inherit</option>
+        <option name="charting.chart">column</option>
+        <option name="charting.chart.nullValueMode">connect</option>
+        <option name="charting.chart.showDataLabels">none</option>
+        <option name="charting.chart.stackMode">stacked</option>
+        <option name="charting.drilldown">all</option>
+        <option name="charting.fieldColors">{"Pass": 0x00cc00, "Skip": 0x000000, "Fail": 0xff0000}</option>
+        <option name="charting.layout.splitSeries">0</option>
+        <option name="charting.legend.placement">right</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
+    </panel>
+    <panel depends="$ut$, $showut$">
+      <chart>
+        <title>Unit Test Pass Rate Over Time</title>
+        <search base="utBaseSearch">
+          <query>| timechart $span_line$ avg(passCount) as avgPass, avg(failCount) as avgFail
+| eval passRate = round(avgPass/(avgPass+avgFail) * 100, 3)
+| where passRate &gt; 0
+| `lineartrend(_time, passRate)`
+| timechart $span_line$ values(passRate) as "Pass Rate", values(newY) as Trend
+| table _time "Pass Rate" Trend</query>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.overflowMode">ellipsisNone</option>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.axisTitleY.text">Pass Rate (%)</option>
+        <option name="charting.axisTitleY.visibility">visible</option>
+        <option name="charting.axisTitleY2.visibility">visible</option>
+        <option name="charting.axisX.abbreviation">none</option>
+        <option name="charting.axisX.scale">linear</option>
+        <option name="charting.axisY.abbreviation">none</option>
+        <option name="charting.axisY.maximumNumber">100</option>
+        <option name="charting.axisY.scale">linear</option>
+        <option name="charting.axisY2.abbreviation">none</option>
+        <option name="charting.axisY2.enabled">0</option>
+        <option name="charting.axisY2.maximumNumber">100</option>
+        <option name="charting.axisY2.scale">inherit</option>
+        <option name="charting.chart">line</option>
+        <option name="charting.chart.bubbleMaximumSize">50</option>
+        <option name="charting.chart.bubbleMinimumSize">10</option>
+        <option name="charting.chart.bubbleSizeBy">area</option>
+        <option name="charting.chart.nullValueMode">connect</option>
+        <option name="charting.chart.showDataLabels">none</option>
+        <option name="charting.chart.sliceCollapsingThreshold">0.01</option>
+        <option name="charting.chart.stackMode">stacked100</option>
+        <option name="charting.chart.style">shiny</option>
+        <option name="charting.drilldown">none</option>
+        <option name="charting.layout.splitSeries">0</option>
+        <option name="charting.layout.splitSeries.allowIndependentYRanges">0</option>
+        <option name="charting.legend.labelStyle.overflowMode">ellipsisMiddle</option>
+        <option name="charting.legend.mode">standard</option>
+        <option name="charting.legend.placement">right</option>
+        <option name="charting.lineWidth">2</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="trellis.enabled">0</option>
+        <option name="trellis.scales.shared">1</option>
+        <option name="trellis.size">medium</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$ut$, $showut$">
+      <chart>
+        <title>Unit Test Run Results</title>
+        <search base="utBaseSearch">
+          <query>| timechart $span_col$ count by result
+| rename UNSTABLE as PARTIAL
+| table _time ABORTED FAILURE PARTIAL SUCCESS</query>
+          <progress>
+            <condition match="'job.resultCount' &gt; 0">
+              <set token="showut">true</set>
+            </condition>
+            <condition>
+              <unset token="showut"></unset>
+            </condition>
+          </progress>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.axisTitleY.text">Number of Runs</option>
+        <option name="charting.chart">column</option>
+        <option name="charting.chart.showDataLabels">none</option>
+        <option name="charting.chart.stackMode">stacked</option>
+        <option name="charting.fieldColors">{"ABORTED": 0x000000, "FAILURE": 0xff0000, "SUCCESS":0x00cc00, "PARTIAL": 0xffff00}</option>
+        <option name="charting.legend.placement">right</option>
+        <option name="refresh.display">progressbar</option>
+        <drilldown>
+          <eval token="drilldown.latest">$earliest$ + 86400</eval>
+          <link target="_blank">/app/pivt/search?q=index=pivt_jenkins stage=unittest ss="$ss$" ci="$ci$" instance="$instance$" iteration="$iteration$" derived_cause="$cause$" BASELINE_VERSION="$release$" | eval clickName=if("$click.name2$"=="PARTIAL", "UNSTABLE", "$click.name2$") | where result=clickName | table _time ss ci stage number result duration ttr instance iteration&amp;earliest=$earliest$&amp;latest=$drilldown.latest$</link>
+        </drilldown>
+      </chart>
+    </panel>
+    <panel depends="$ut$, $showut$">
+      <chart>
+        <title>Unit Test Time To Repair (TTR)</title>
+        <search base="utBaseSearch">
+          <query>| timechart $span_line$ avg(ttr) as ttr
+| eval ttr = ttr/60/60
+| where ttr &gt; 0
+| `lineartrend(_time, ttr)`
+| timechart $span_line$ values(ttr) as TTR, values(newY) as Trend
+| table _time TTR Trend</query>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisLabelsY.majorUnit">1</option>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.axisTitleY.text">TTR (hours)</option>
+        <option name="charting.axisY.minimumNumber">0</option>
+        <option name="charting.chart">line</option>
+        <option name="charting.chart.nullValueMode">connect</option>
+        <option name="charting.drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$package$, $showpackage$">
+      <title>Package</title>
+      <table>
+        <search base="packageBaseSearch">
+          <query>| fillnull value="-" ttr
+| eval duration = if(result=="SUCCESS", duration, null())
+| stats count as Count, earliest(_time) as earliest, latest(_time) as latest, avg(duration) as avgSuccessDuration, avg(ttr) as mttr, sum(eval(result=="SUCCESS")) as SUCCESS, sum(eval(result=="FAILURE")) as FAILURE, sum(eval(result=="ABORTED")) as ABORTED, sum(eval(result=="UNSTABLE")) as UNSTABLE by ci
+| rename ci as CI
+| addinfo
+| eval Earliest=strftime(earliest, "%m/%d/%Y")
+| eval Latest=strftime(latest, "%m/%d/%Y")
+| eval windowEarliest = if(info_min_time == 0, earliest, info_min_time)
+| eval windowLatest = if(info_max_time == "+Infinity", latest, info_max_time)
+| eval "Runs/Day"=coalesce(round(Count/ceiling((windowLatest - windowEarliest)/86400), 2), 1)
+| eval "Avg Success Duration (h)"=round(avgSuccessDuration/1000/60/60, 2)
+| fillnull value="--------" "Avg Success Duration (h)"
+| fillnull ABORTED UNSTABLE SUCCESS FAILURE
+| eval ABORTED=round(ABORTED/Count*100, 2)."%"
+| eval SUCCESS=round(SUCCESS/Count*100, 2)."%"
+| eval FAILURE=round(FAILURE/Count*100, 2)."%"
+| eval UNSTABLE=round(UNSTABLE/Count*100, 2)."%"
+| eval "MTTR (h)" = case(SUCCESS == "100.00%", 0, SUCCESS == "0.00%", "--------", true(), round(mttr/60/60, 2))
+| table CI Count Earliest Latest "Runs/Day" "MTTR (h)" "Avg Success Duration (h)" SUCCESS FAILURE ABORTED UNSTABLE</query>
+        </search>
+        <option name="count">20</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$package$, $showpackage$">
+      <chart>
+        <title>Package Results</title>
+        <search base="packageBaseSearch">
+          <query>| timechart $span_col$ count by result</query>
+          <progress>
+            <condition match="'job.resultCount' &gt; 0">
+              <set token="showpackage">true</set>
+            </condition>
+            <condition>
+              <unset token="showpackage"></unset>
+            </condition>
+          </progress>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.axisTitleY.text">Number of Packages</option>
+        <option name="charting.chart">column</option>
+        <option name="charting.chart.showDataLabels">none</option>
+        <option name="charting.chart.stackMode">stacked</option>
+        <option name="charting.fieldColors">{"ABORTED": 0x000000, "FAILURE": 0xff0000, "SUCCESS":0x00cc00, "UNSTABLE": 0xffff00}</option>
+        <option name="charting.legend.placement">right</option>
+        <option name="refresh.display">progressbar</option>
+        <drilldown>
+          <eval token="drilldown.latest">$earliest$ + 86400</eval>
+          <link target="_blank">/app/pivt/search?q=index=pivt_jenkins stage=package ss="$ss$" ci="$ci$" instance="$instance$" iteration="$iteration$" derived_cause="$cause$" BASELINE_VERSION="$release$" result=$click.name2$ | table _time ss ci stage number result duration ttr instance iteration&amp;earliest=$earliest$&amp;latest=$drilldown.latest$</link>
+        </drilldown>
+      </chart>
+    </panel>
+    <panel depends="$package$, $showpackage$">
+      <chart>
+        <title>Package Time To Repair (TTR)</title>
+        <search base="packageBaseSearch">
+          <query>| timechart $span_line$ avg(ttr) as ttr
+| eval ttr = ttr/60/60
+| where ttr &gt; 0
+| `lineartrend(_time, ttr)`
+| timechart $span_line$ values(ttr) as TTR, values(newY) as Trend
+| table _time TTR Trend</query>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisLabelsY.majorUnit">1</option>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.axisTitleY.text">TTR (hours)</option>
+        <option name="charting.axisY.minimumNumber">0</option>
+        <option name="charting.chart">line</option>
+        <option name="charting.chart.nullValueMode">connect</option>
+        <option name="charting.drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$provision$, $showprovision$">
+      <title>Provision</title>
+      <table>
+        <search base="provisionBaseSearch">
+          <query>| fillnull value="-" ttr
+| eval duration = if(result=="SUCCESS", duration, null())
+| stats count as Count, earliest(_time) as earliest, latest(_time) as latest, avg(duration) as avgSuccessDuration, avg(ttr) as mttr, sum(eval(result=="SUCCESS")) as SUCCESS, sum(eval(result=="FAILURE")) as FAILURE, sum(eval(result=="ABORTED")) as ABORTED, sum(eval(result=="UNSTABLE")) as UNSTABLE by ci
+| rename ci as CI
+| addinfo
+| eval Earliest=strftime(earliest, "%m/%d/%Y")
+| eval Latest=strftime(latest, "%m/%d/%Y")
+| eval windowEarliest = if(info_min_time == 0, earliest, info_min_time)
+| eval windowLatest = if(info_max_time == "+Infinity", latest, info_max_time)
+| eval "Runs/Day"=coalesce(round(Count/ceiling((windowLatest - windowEarliest)/86400), 2), 1)
+| eval "Avg Success Duration (h)"=round(avgSuccessDuration/1000/60/60, 2)
+| fillnull value="--------" "Avg Success Duration (h)"
+| fillnull ABORTED UNSTABLE SUCCESS FAILURE
+| eval ABORTED=round(ABORTED/Count*100, 2)."%"
+| eval SUCCESS=round(SUCCESS/Count*100, 2)."%"
+| eval FAILURE=round(FAILURE/Count*100, 2)."%"
+| eval UNSTABLE=round(UNSTABLE/Count*100, 2)."%"
+| eval "MTTR (h)" = case(SUCCESS == "100.00%", 0, SUCCESS == "0.00%", "--------", true(), round(mttr/60/60, 2))
+| table CI Count Earliest Latest "Runs/Day" "MTTR (h)" "Avg Success Duration (h)" SUCCESS FAILURE ABORTED UNSTABLE</query>
+        </search>
+        <option name="count">20</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$provision$, $showprovision$">
+      <chart>
+        <title>Provision Results</title>
+        <search base="provisionBaseSearch">
+          <query>| timechart $span_col$ count by result</query>
+          <progress>
+            <condition match="'job.resultCount' &gt; 0">
+              <set token="showprovision">true</set>
+            </condition>
+            <condition>
+              <unset token="showprovision"></unset>
+            </condition>
+          </progress>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.axisTitleY.text">Number of Provisions</option>
+        <option name="charting.chart">column</option>
+        <option name="charting.chart.showDataLabels">none</option>
+        <option name="charting.chart.stackMode">stacked</option>
+        <option name="charting.fieldColors">{"ABORTED": 0x000000, "FAILURE": 0xff0000, "SUCCESS":0x00cc00, "UNSTABLE": 0xffff00}</option>
+        <option name="charting.legend.placement">right</option>
+        <option name="refresh.display">progressbar</option>
+        <drilldown>
+          <eval token="drilldown.latest">$earliest$ + 86400</eval>
+          <link target="_blank">/app/pivt/search?q=index=pivt_jenkins stage=provision ss="$ss$" ci="$ci$" instance="$instance$" iteration="$iteration$" derived_cause="$cause$" BASELINE_VERSION="$release$" result=$click.name2$ | table _time ss ci stage number result duration ttr instance iteration&amp;earliest=$earliest$&amp;latest=$drilldown.latest$</link>
+        </drilldown>
+      </chart>
+    </panel>
+    <panel depends="$provision$, $showprovision$">
+      <chart>
+        <title>Provision Time To Repair (TTR)</title>
+        <search base="provisionBaseSearch">
+          <query>| timechart $span_line$ avg(ttr) as ttr
+| eval ttr = ttr/60/60
+| where ttr &gt; 0
+| `lineartrend(_time, ttr)`
+| timechart $span_line$ values(ttr) as TTR, values(newY) as Trend
+| table _time TTR Trend</query>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisLabelsY.majorUnit">1</option>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.axisTitleY.text">TTR (hours)</option>
+        <option name="charting.axisY.minimumNumber">0</option>
+        <option name="charting.chart">line</option>
+        <option name="charting.chart.nullValueMode">connect</option>
+        <option name="charting.drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$stg$, $showstage$">
+      <title>Stage</title>
+      <table>
+        <search base="stageBaseSearch">
+          <query>| fillnull value="-" ttr
+| eval duration = if(result=="SUCCESS", duration, null())
+| stats count as Count, earliest(_time) as earliest, latest(_time) as latest, avg(duration) as avgSuccessDuration, avg(ttr) as mttr, sum(eval(result=="SUCCESS")) as SUCCESS, sum(eval(result=="FAILURE")) as FAILURE, sum(eval(result=="ABORTED")) as ABORTED, sum(eval(result=="UNSTABLE")) as UNSTABLE by ci
+| rename ci as CI
+| addinfo
+| eval Earliest=strftime(earliest, "%m/%d/%Y")
+| eval Latest=strftime(latest, "%m/%d/%Y")
+| eval windowEarliest = if(info_min_time == 0, earliest, info_min_time)
+| eval windowLatest = if(info_max_time == "+Infinity", latest, info_max_time)
+| eval "Runs/Day"=coalesce(round(Count/ceiling((windowLatest - windowEarliest)/86400), 2), 1)
+| eval "Avg Success Duration (h)"=round(avgSuccessDuration/1000/60/60, 2)
+| fillnull value="--------" "Avg Success Duration (h)"
+| fillnull ABORTED UNSTABLE SUCCESS FAILURE
+| eval ABORTED=round(ABORTED/Count*100, 2)."%"
+| eval SUCCESS=round(SUCCESS/Count*100, 2)."%"
+| eval FAILURE=round(FAILURE/Count*100, 2)."%"
+| eval UNSTABLE=round(UNSTABLE/Count*100, 2)."%"
+| eval "MTTR (h)" = case(SUCCESS == "100.00%", 0, SUCCESS == "0.00%", "--------", true(), round(mttr/60/60, 2))
+| table CI Count Earliest Latest "Runs/Day" "MTTR (h)" "Avg Success Duration (h)" SUCCESS FAILURE ABORTED UNSTABLE</query>
+        </search>
+        <option name="count">20</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$stg$, $showstage$">
+      <chart>
+        <title>Stage Results</title>
+        <search base="stageBaseSearch">
+          <query>| timechart $span_col$ count by result</query>
+          <progress>
+            <condition match="'job.resultCount' &gt; 0">
+              <set token="showstage">true</set>
+            </condition>
+            <condition>
+              <unset token="showstage"></unset>
+            </condition>
+          </progress>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.axisTitleY.text">Number of Stages</option>
+        <option name="charting.chart">column</option>
+        <option name="charting.chart.showDataLabels">none</option>
+        <option name="charting.chart.stackMode">stacked</option>
+        <option name="charting.fieldColors">{"ABORTED": 0x000000, "FAILURE": 0xff0000, "SUCCESS":0x00cc00, "UNSTABLE": 0xffff00}</option>
+        <option name="charting.legend.placement">right</option>
+        <option name="refresh.display">progressbar</option>
+        <drilldown>
+          <eval token="drilldown.latest">$earliest$ + 86400</eval>
+          <link target="_blank">/app/pivt/search?q=index=pivt_jenkins stage=stage ss="$ss$" ci="$ci$" instance="$instance$" iteration="$iteration$" derived_cause="$cause$" BASELINE_VERSION="$release$" result=$click.name2$ | table _time ss ci stage number result duration ttr instance iteration&amp;earliest=$earliest$&amp;latest=$drilldown.latest$</link>
+        </drilldown>
+      </chart>
+    </panel>
+    <panel depends="$stg$, $showstage$">
+      <chart>
+        <title>Stage Time To Repair (TTR)</title>
+        <search base="stageBaseSearch">
+          <query>| timechart $span_line$ avg(ttr) as ttr
+| eval ttr = ttr/60/60
+| where ttr &gt; 0
+| `lineartrend(_time, ttr)`
+| timechart $span_line$ values(ttr) as TTR, values(newY) as Trend
+| table _time TTR Trend</query>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisLabelsY.majorUnit">1</option>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.axisTitleY.text">TTR (hours)</option>
+        <option name="charting.axisY.minimumNumber">0</option>
+        <option name="charting.chart">line</option>
+        <option name="charting.chart.nullValueMode">connect</option>
+        <option name="charting.drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$deploy$, $showdeploy$">
+      <title>Deploys</title>
+      <table>
+        <search base="deployBaseSearch">
+          <query>| fillnull value="-" ttr
+| eval duration = if(result=="SUCCESS", duration, null())
+| stats count as Count, earliest(_time) as earliest, latest(_time) as latest, avg(duration) as avgSuccessDuration, avg(ttr) as mttr, sum(eval(result=="SUCCESS")) as SUCCESS, sum(eval(result=="FAILURE")) as FAILURE, sum(eval(result=="ABORTED")) as ABORTED, sum(eval(result=="UNSTABLE")) as UNSTABLE by ci
+| rename ci as CI
+| addinfo
+| eval Earliest=strftime(earliest, "%m/%d/%Y")
+| eval Latest=strftime(latest, "%m/%d/%Y")
+| eval windowEarliest = if(info_min_time == 0, earliest, info_min_time)
+| eval windowLatest = if(info_max_time == "+Infinity", latest, info_max_time)
+| eval "Runs/Day"=coalesce(round(Count/ceiling((windowLatest - windowEarliest)/86400), 2), 1)
+| eval "Avg Success Duration (h)"=round(avgSuccessDuration/1000/60/60, 2)
+| fillnull value="--------" "Avg Success Duration (h)"
+| fillnull ABORTED UNSTABLE SUCCESS FAILURE
+| eval ABORTED=round(ABORTED/Count*100, 2)."%"
+| eval SUCCESS=round(SUCCESS/Count*100, 2)."%"
+| eval FAILURE=round(FAILURE/Count*100, 2)."%"
+| eval UNSTABLE=round(UNSTABLE/Count*100, 2)."%"
+| eval "MTTR (h)" = case(SUCCESS == "100.00%", 0, SUCCESS == "0.00%", "--------", true(), round(mttr/60/60, 2))
+| table CI Count Earliest Latest "Runs/Day" "MTTR (h)" "Avg Success Duration (h)" SUCCESS FAILURE ABORTED UNSTABLE</query>
+        </search>
+        <option name="count">20</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$deploy$, $showdeploy$">
+      <chart>
+        <title>Deploy Results</title>
+        <search base="deployBaseSearch">
+          <query>| timechart $span_col$ count by result</query>
+          <progress>
+            <condition match="'job.resultCount' &gt; 0">
+              <set token="showdeploy">true</set>
+            </condition>
+            <condition>
+              <unset token="showdeploy"></unset>
+            </condition>
+          </progress>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.axisTitleY.text">Number of Deploys</option>
+        <option name="charting.chart">column</option>
+        <option name="charting.chart.showDataLabels">none</option>
+        <option name="charting.chart.stackMode">stacked</option>
+        <option name="charting.fieldColors">{"ABORTED": 0x000000, "FAILURE": 0xff0000, "SUCCESS":0x00cc00, "UNSTABLE": 0xffff00}</option>
+        <option name="charting.legend.placement">right</option>
+        <option name="refresh.display">progressbar</option>
+        <drilldown>
+          <eval token="drilldown.latest">$earliest$ + 86400</eval>
+          <link target="_blank">/app/pivt/search?q=index=pivt_jenkins stage=deploy ss="$ss$" ci="$ci$" instance="$instance$" iteration="$iteration$" derived_cause="$cause$" BASELINE_VERSION="$release$" result=$click.name2$ | table _time ss ci stage number result duration ttr instance iteration&amp;earliest=$earliest$&amp;latest=$drilldown.latest$</link>
+        </drilldown>
+      </chart>
+    </panel>
+    <panel depends="$deploy$, $showdeploy$">
+      <chart>
+        <title>Deploy Time To Repair (TTR)</title>
+        <search base="deployBaseSearch">
+          <query>| timechart $span_line$ avg(ttr) as ttr
+| eval ttr = ttr/60/60
+| where ttr &gt; 0
+| `lineartrend(_time, ttr)`
+| timechart $span_line$ values(ttr) as TTR, values(newY) as Trend
+| table _time TTR Trend</query>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisLabelsY.majorUnit">1</option>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.axisTitleY.text">TTR (hours)</option>
+        <option name="charting.chart">line</option>
+        <option name="charting.chart.nullValueMode">connect</option>
+        <option name="charting.drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$ft$, $showft$">
+      <title>Functional Tests</title>
+      <table>
+        <search>
+          <query>| tstats count as Count, earliest(_time) as earliest, latest(_time) as latest, avg(jenkins.ttr) as mttr, avg(jenkins.scenarioPassCount) as avgPass, avg(jenkins.scenarioFailCount) as avgFail from datamodel=ocx_jenkins where nodename=jenkins.functional_tests, jenkins.ss="$ss$", jenkins.ci="$ci$", jenkins.instance="$instance$", jenkins.iteration="$iteration$", jenkins.cause="$cause$", jenkins.BASELINE_VERSION="$release$" by jenkins.ci
+| rename jenkins.ci as CI
+| addinfo
+| eval Earliest=strftime(earliest, "%m/%d/%Y")
+| eval Latest=strftime(latest, "%m/%d/%Y")
+| eval windowEarliest = if(info_min_time == 0, earliest, info_min_time)
+| eval windowLatest = if(info_max_time == "+Infinity", latest, info_max_time)
+| eval "Runs/Day"=coalesce(round(Count/ceiling((windowLatest - windowEarliest)/86400), 2), 1)
+| eval "MTTR (h)"=round(mttr/60/60, 2)
+| eval "Avg Success Duration (h)"="--------"
+| eval avgTotal = avgPass + avgFail
+| eval passRate = avgPass/avgTotal
+| eval "Pass Rate" = round(passRate * 100, 3)."%"
+| eval "Avg # of Tests" = round(avgPass + avgFail, 2)
+| join CI type=outer
+    [| tstats avg(jenkins.duration) as avgDuration from datamodel=ocx_jenkins where nodename=jenkins.functional_tests, jenkins.ss="$ss$", jenkins.ci="$ci$", jenkins.instance="$instance$", jenkins.iteration="$iteration$", jenkins.cause="$cause$", jenkins.BASELINE_VERSION="$release$", jenkins.result=SUCCESS OR jenkins.result=UNSTABLE by jenkins.ci
+    | rename jenkins.ci as CI
+    | eval "Avg Success Duration (h)"=round(avgDuration/1000/60/60, 2)]
+| eval "MTTR (h)" = if(passRate == 1, 0, round(mttr/60/60, 2))
+| fillnull value="--------" "MTTR (h)"
+| fillnull value="--------" "Avg # of Tests"
+| fillnull value="--------" "Pass Rate"
+| table CI Count Earliest Latest "Runs/Day" "MTTR (h)" "Avg Success Duration (h)" "Avg # of Tests" "Pass Rate"</query>
+          <earliest>$timeWindow.earliest$</earliest>
+          <latest>$timeWindow.latest$</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="count">20</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$ft$, $showft$">
+      <chart>
+        <title>Functional Test Feature Execution Count Over Time</title>
+        <search>
+          <query>| makeresults
+| addinfo
+| eval _time = info_min_time
+| timechart $span_col$ count
+| append
+    [search index=pivt_jenkins stage=functionaltest featurePassCount!=0 OR featureFailCount !=0 ss="$ss$" ci="$ci$" instance="$instance$" iteration="$iteration$" derived_cause="$cause$" BASELINE_VERSION="$release$"
+    | rename featurePassCount as Pass
+    | rename featureFailCount as Fail]
+| table _time Pass Fail</query>
+          <earliest>$timeWindow.earliest$</earliest>
+          <latest>$timeWindow.latest$</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.axisTitleY.text">Number of Features</option>
+        <option name="charting.axisTitleY2.visibility">visible</option>
+        <option name="charting.axisY.scale">linear</option>
+        <option name="charting.axisY2.abbreviation">none</option>
+        <option name="charting.axisY2.enabled">0</option>
+        <option name="charting.axisY2.scale">inherit</option>
+        <option name="charting.chart">column</option>
+        <option name="charting.chart.nullValueMode">connect</option>
+        <option name="charting.chart.showDataLabels">none</option>
+        <option name="charting.chart.stackMode">stacked</option>
+        <option name="charting.drilldown">all</option>
+        <option name="charting.fieldColors">{"Pass":0x00cc00, "Fail": 0xff0000}</option>
+        <option name="charting.layout.splitSeries">0</option>
+        <option name="charting.legend.placement">right</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
+    </panel>
+    <panel depends="$ft$, $showft$">
+      <chart>
+        <title>Functional Test Scenario Execution Count Over Time</title>
+        <search>
+          <query>| makeresults
+| addinfo
+| eval _time = info_min_time
+| timechart $span_col$ count
+| append
+    [search index=pivt_jenkins stage=functionaltest scenarioPassCount!=0 OR scenarioFailCount !=0 ss="$ss$" ci="$ci$" instance="$instance$" iteration="$iteration$" derived_cause="$cause$" BASELINE_VERSION="$release$"
+    | rename scenarioPassCount as Pass
+    | rename scenarioFailCount as Fail]
+| table _time Pass Fail</query>
+          <earliest>$timeWindow.earliest$</earliest>
+          <latest>$timeWindow.latest$</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.axisTitleY.text">Number of Scenarios</option>
+        <option name="charting.axisTitleY2.visibility">visible</option>
+        <option name="charting.axisY.scale">linear</option>
+        <option name="charting.axisY2.abbreviation">none</option>
+        <option name="charting.axisY2.enabled">0</option>
+        <option name="charting.axisY2.scale">inherit</option>
+        <option name="charting.chart">column</option>
+        <option name="charting.chart.nullValueMode">connect</option>
+        <option name="charting.chart.showDataLabels">none</option>
+        <option name="charting.chart.stackMode">stacked</option>
+        <option name="charting.drilldown">all</option>
+        <option name="charting.fieldColors">{"Pass":0x00cc00, "Fail": 0xff0000}</option>
+        <option name="charting.layout.splitSeries">0</option>
+        <option name="charting.legend.placement">right</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$ft$, $showft$">
+      <chart>
+        <title>Functional Test Feature Pass Rate Over Time</title>
+        <search>
+          <query>| tstats avg(jenkins.featurePassCount) as passAvg, avg(jenkins.featureFailCount) as failAvg from datamodel=ocx_jenkins where nodename=jenkins.functional_tests, jenkins.ss="$ss$", jenkins.ci="$ci$", jenkins.instance="$instance$", jenkins.iteration="$iteration$", jenkins.cause="$cause$", jenkins.BASELINE_VERSION="$release$" by _time $span_line$
+| eval totalAvg = passAvg + failAvg
+| eval passRate = round(passAvg/totalAvg * 100, 3)
+| where passRate &gt; 0
+| `lineartrend(_time, passRate)`
+| timechart $span_line$ values(passRate) as "Pass Rate", values(newY) as Trend
+| table _time "Pass Rate" Trend</query>
+          <earliest>$timeWindow.earliest$</earliest>
+          <latest>$timeWindow.latest$</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.overflowMode">ellipsisNone</option>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.axisTitleY.text">Pass Rate (%)</option>
+        <option name="charting.axisTitleY.visibility">visible</option>
+        <option name="charting.axisTitleY2.visibility">visible</option>
+        <option name="charting.axisX.abbreviation">none</option>
+        <option name="charting.axisX.scale">linear</option>
+        <option name="charting.axisY.abbreviation">none</option>
+        <option name="charting.axisY.maximumNumber">100</option>
+        <option name="charting.axisY.scale">linear</option>
+        <option name="charting.axisY2.abbreviation">none</option>
+        <option name="charting.axisY2.enabled">0</option>
+        <option name="charting.axisY2.scale">inherit</option>
+        <option name="charting.chart">line</option>
+        <option name="charting.chart.bubbleMaximumSize">50</option>
+        <option name="charting.chart.bubbleMinimumSize">10</option>
+        <option name="charting.chart.bubbleSizeBy">area</option>
+        <option name="charting.chart.nullValueMode">connect</option>
+        <option name="charting.chart.showDataLabels">none</option>
+        <option name="charting.chart.sliceCollapsingThreshold">0.01</option>
+        <option name="charting.chart.stackMode">stacked100</option>
+        <option name="charting.chart.style">shiny</option>
+        <option name="charting.drilldown">none</option>
+        <option name="charting.fieldColors">{"Fail %": 0xff0000, "Pass %":0x00cc00, "Avg Total":0x000000}</option>
+        <option name="charting.layout.splitSeries">0</option>
+        <option name="charting.layout.splitSeries.allowIndependentYRanges">0</option>
+        <option name="charting.legend.labelStyle.overflowMode">ellipsisMiddle</option>
+        <option name="charting.legend.mode">standard</option>
+        <option name="charting.legend.placement">right</option>
+        <option name="charting.lineWidth">2</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="trellis.enabled">0</option>
+        <option name="trellis.scales.shared">1</option>
+        <option name="trellis.size">medium</option>
+      </chart>
+    </panel>
+    <panel depends="$ft$, $showft$">
+      <chart>
+        <title>Functional Test Scenario Pass Rate Over Time</title>
+        <search>
+          <query>| tstats avg(jenkins.scenarioPassCount) as passAvg, avg(jenkins.scenarioFailCount) as failAvg from datamodel=ocx_jenkins where nodename=jenkins.functional_tests, jenkins.ss="$ss$", jenkins.ci="$ci$", jenkins.instance="$instance$", jenkins.iteration="$iteration$", jenkins.cause="$cause$", jenkins.BASELINE_VERSION="$release$" by _time $span_line$
+| eval totalAvg = passAvg + failAvg
+| eval passRate = round(passAvg/totalAvg * 100, 3)
+| where passRate &gt; 0
+| `lineartrend(_time, passRate)`
+| timechart $span_line$ values(passRate) as "Pass Rate", values(newY) as Trend
+| table _time "Pass Rate" Trend</query>
+          <earliest>$timeWindow.earliest$</earliest>
+          <latest>$timeWindow.latest$</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.overflowMode">ellipsisNone</option>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.axisTitleY.text">Pass Rate (%)</option>
+        <option name="charting.axisTitleY.visibility">visible</option>
+        <option name="charting.axisTitleY2.visibility">visible</option>
+        <option name="charting.axisX.abbreviation">none</option>
+        <option name="charting.axisX.scale">linear</option>
+        <option name="charting.axisY.abbreviation">none</option>
+        <option name="charting.axisY.maximumNumber">100</option>
+        <option name="charting.axisY.scale">linear</option>
+        <option name="charting.axisY2.abbreviation">none</option>
+        <option name="charting.axisY2.enabled">0</option>
+        <option name="charting.axisY2.scale">inherit</option>
+        <option name="charting.chart">line</option>
+        <option name="charting.chart.bubbleMaximumSize">50</option>
+        <option name="charting.chart.bubbleMinimumSize">10</option>
+        <option name="charting.chart.bubbleSizeBy">area</option>
+        <option name="charting.chart.nullValueMode">connect</option>
+        <option name="charting.chart.showDataLabels">none</option>
+        <option name="charting.chart.sliceCollapsingThreshold">0.01</option>
+        <option name="charting.chart.stackMode">stacked100</option>
+        <option name="charting.chart.style">shiny</option>
+        <option name="charting.drilldown">none</option>
+        <option name="charting.fieldColors">{"Fail %": 0xff0000, "Pass %":0x00cc00, "Avg Total":0x000000}</option>
+        <option name="charting.layout.splitSeries">0</option>
+        <option name="charting.layout.splitSeries.allowIndependentYRanges">0</option>
+        <option name="charting.legend.labelStyle.overflowMode">ellipsisMiddle</option>
+        <option name="charting.legend.mode">standard</option>
+        <option name="charting.legend.placement">right</option>
+        <option name="charting.lineWidth">2</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="trellis.enabled">0</option>
+        <option name="trellis.scales.shared">1</option>
+        <option name="trellis.size">medium</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$ft$, $showft$">
+      <chart>
+        <title>Functional Test Results</title>
+        <search>
+          <query>| tstats count from datamodel=ocx_jenkins where nodename=jenkins.functional_tests, jenkins.ss="$ss$", jenkins.ci="$ci$", jenkins.instance="$instance$", jenkins.iteration="$iteration$", jenkins.cause="$cause$", jenkins.BASELINE_VERSION="$release$", jenkins.result!=null, jenkins.result!=None by _time, jenkins.result $span_col$
+| timechart $span_col$ values(count) as count by jenkins.result
+| rename UNSTABLE as PARTIAL</query>
+          <earliest>$timeWindow.earliest$</earliest>
+          <latest>$timeWindow.latest$</latest>
+          <sampleRatio>1</sampleRatio>
+          <progress>
+            <condition match="'job.resultCount' &gt; 0">
+              <set token="showft">true</set>
+            </condition>
+            <condition>
+              <unset token="showft"></unset>
+            </condition>
+          </progress>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.axisTitleY.text">Number of Runs</option>
+        <option name="charting.chart">column</option>
+        <option name="charting.chart.showDataLabels">none</option>
+        <option name="charting.chart.stackMode">stacked</option>
+        <option name="charting.fieldColors">{"ABORTED": 0x000000, "FAILURE": 0xff0000, "SUCCESS":0x00cc00, "PARTIAL": 0xffff00}</option>
+        <option name="charting.legend.placement">right</option>
+        <option name="refresh.display">progressbar</option>
+        <drilldown>
+          <eval token="drilldown.latest">$earliest$ + 86400</eval>
+          <link target="_blank">/app/pivt/search?q=index=pivt_jenkins stage=functionaltest ss="$ss$" ci="$ci$" instance="$instance$" iteration="$iteration$" derived_cause="$cause$" BASELINE_VERSION="$release$" | eval clickName=if("$click.name2$"=="PARTIAL", "UNSTABLE", "$click.name2$") | where result=clickName | table _time ss ci stage number result duration ttr instance iteration&amp;earliest=$earliest$&amp;latest=$drilldown.latest$</link>
+        </drilldown>
+      </chart>
+    </panel>
+    <panel depends="$ft$, $showft$">
+      <chart>
+        <title>Functional Test Time To Repair (TTR)</title>
+        <search>
+          <query>| tstats avg(jenkins.ttr) as ttr from datamodel=ocx_jenkins where nodename=jenkins.functional_tests, jenkins.ss="$ss$", jenkins.ci="$ci$", jenkins.instance="$instance$", jenkins.iteration="$iteration$", jenkins.cause="$cause$", jenkins.BASELINE_VERSION="$release$" by _time $span_line$
+| eval ttr=ttr/60/60
+| where ttr &gt; 0
+| `lineartrend(_time, ttr)`
+| timechart $span_line$ values(ttr) as TTR, values(newY) as Trend
+| table _time TTR Trend</query>
+          <earliest>$timeWindow.earliest$</earliest>
+          <latest>$timeWindow.latest$</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisLabelsY.majorUnit">1</option>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.axisTitleY.text">TTR (hours)</option>
+        <option name="charting.chart">line</option>
+        <option name="charting.chart.nullValueMode">connect</option>
+        <option name="charting.drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$awsdeploy$, $showawsdeploy$">
+      <title>AWS Deploys</title>
+      <table>
+        <search base="awsDeployBaseSearch">
+          <query>| fillnull value="-" ttr
+| eval duration = if(result=="SUCCESS", duration, null())
+| stats count as Count, earliest(_time) as earliest, latest(_time) as latest, avg(duration) as avgSuccessDuration, avg(ttr) as mttr, sum(eval(result=="SUCCESS")) as SUCCESS, sum(eval(result=="FAILURE")) as FAILURE, sum(eval(result=="ABORTED")) as ABORTED, sum(eval(result=="UNSTABLE")) as UNSTABLE by ci
+| rename ci as CI
+| addinfo
+| eval Earliest=strftime(earliest, "%m/%d/%Y")
+| eval Latest=strftime(latest, "%m/%d/%Y")
+| eval windowEarliest = if(info_min_time == 0, earliest, info_min_time)
+| eval windowLatest = if(info_max_time == "+Infinity", latest, info_max_time)
+| eval "Runs/Day"=coalesce(round(Count/ceiling((windowLatest - windowEarliest)/86400), 2), 1)
+| eval "Avg Success Duration (h)"=round(avgSuccessDuration/1000/60/60, 2)
+| fillnull value="--------" "Avg Success Duration (h)"
+| fillnull ABORTED UNSTABLE SUCCESS FAILURE
+| eval ABORTED=round(ABORTED/Count*100, 2)."%"
+| eval SUCCESS=round(SUCCESS/Count*100, 2)."%"
+| eval FAILURE=round(FAILURE/Count*100, 2)."%"
+| eval UNSTABLE=round(UNSTABLE/Count*100, 2)."%"
+| eval "MTTR (h)" = case(SUCCESS=="100.00%", 0, SUCCESS=="0.00%", "--------", true(), round(mttr/60/60, 2))
+| table CI Count Earliest Latest "Runs/Day" "MTTR (h)" "Avg Success Duration (h)" SUCCESS FAILURE ABORTED UNSTABLE</query>
+        </search>
+        <option name="count">20</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$awsdeploy$, $showawsdeploy$">
+      <chart>
+        <title>AWS Deploy Results</title>
+        <search base="awsDeployBaseSearch">
+          <query>| timechart $span_col$ count by result</query>
+          <progress>
+            <condition match="'job.resultCount' &gt; 0">
+              <set token="showawsdeploy">true</set>
+            </condition>
+            <condition>
+              <unset token="showawsdeploy"></unset>
+            </condition>
+          </progress>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.axisTitleY.text">Number of Deploys</option>
+        <option name="charting.chart">column</option>
+        <option name="charting.chart.showDataLabels">none</option>
+        <option name="charting.chart.stackMode">stacked</option>
+        <option name="charting.fieldColors">{"ABORTED": 0x000000, "FAILURE": 0xff0000, "SUCCESS":0x00cc00, "UNSTABLE": 0xffff00}</option>
+        <option name="charting.legend.placement">right</option>
+        <option name="refresh.display">progressbar</option>
+        <drilldown>
+          <eval token="drilldown.latest">$earliest$ + 86400</eval>
+          <link target="_blank">/app/pivt/search?q=index=pivt_jenkins stage=aws_deploy ss="$ss$" ci="$ci$" instance="$instance$" iteration="$iteration$" derived_cause="$cause$" BASELINE_VERSION="$release$" result=$click.name2$ | table _time ss ci stage number result duration ttr instance iteration&amp;earliest=$earliest$&amp;latest=$drilldown.latest$</link>
+        </drilldown>
+      </chart>
+    </panel>
+    <panel depends="$awsdeploy$, $showawsdeploy$">
+      <chart>
+        <title>AWS Deploy Time To Repair (TTR)</title>
+        <search base="awsDeployBaseSearch">
+          <query>| timechart $span_line$ avg(ttr) as ttr
+| eval ttr = ttr/60/60
+| where ttr &gt; 0
+| `lineartrend(_time, ttr)`
+| timechart $span_line$ values(ttr) as TTR, values(newY) as Trend
+| table _time TTR Trend</query>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisLabelsY.majorUnit">1</option>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.axisTitleY.text">TTR (hours)</option>
+        <option name="charting.axisY.minimumNumber">0</option>
+        <option name="charting.chart">line</option>
+        <option name="charting.chart.nullValueMode">connect</option>
+        <option name="charting.drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$awsft$, $showawsft$">
+      <title>AWS Functional Tests</title>
+      <table>
+        <search base="scenBaseSearch">
+          <query>| eval duration = if(result=="SUCCESS" OR result=="UNSTABLE", duration, null())
+| eval scen_passed = if(scen_passed + scen_failed &gt; 0 AND isnotnull(duration), scen_passed, null())
+| eval scen_failed = if(scen_passed + scen_failed &gt; 0 AND isnotnull(duration), scen_failed, null())
+| eval scen_total = scen_passed + scen_failed
+| fillnull value="-" ttr
+| stats count as Count, earliest(_time) as earliest, latest(_time) as latest, avg(duration) as avgSuccessDuration, avg(scen_total) as avgScenCount, sum(scen_passed) as scen_passed, sum(scen_total) as scen_total, avg(ttr) as mttr, sum(planned_regression_failed) as total_planned_regression_failed, count(eval(planned_regression &gt; 0)) as runs_with_planned_regression by ci
+| rename ci as CI
+| addinfo
+| eval Earliest=strftime(earliest, "%m/%d/%Y"), Latest=strftime(latest, "%m/%d/%Y")
+| eval windowEarliest = if(info_min_time == 0, earliest, info_min_time), windowLatest = if(info_max_time == "+Infinity", latest, info_max_time)
+| eval "Runs/Day"=coalesce(round(Count/ceiling((windowLatest - windowEarliest)/86400), 2), 1)
+| eval "Avg Success Duration (h)"=round(avgSuccessDuration/1000/60/60, 2)
+| eval "Avg # of Scenarios" = round(avgScenCount, 2)
+| eval "Pass Rate" = round(scen_passed / scen_total * 100, 3)."%"
+| eval "MTTR (h)" = if(avgScenPassRate == 1, 0, round(mttr/60/60, 2))
+| eval "Avg Failed @planned_regression Scenarios" = round(total_planned_regression_failed / runs_with_planned_regression, 2)
+| fillnull value="--------" "MTTR (h)"
+| fillnull value="--------" "Avg # of Scenarios"
+| fillnull value="--------" "Pass Rate"
+| fillnull "Avg Failed @planned_regression Scenarios"
+| table CI Count Earliest Latest "Runs/Day" "MTTR (h)" "Avg Success Duration (h)" "Avg # of Scenarios" "Pass Rate" "Avg Failed @planned_regression Scenarios"</query>
+        </search>
+        <option name="count">20</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$awsft$, $showawsft$">
+      <chart>
+        <title>AWS Functional Test Feature Execution Count Over Time</title>
+        <search base="ftBaseSearch">
+          <query>| rename feat_passed as Pass, feat_failed as Fail
+| append
+    [| makeresults
+    | addinfo
+    | eval _time = info_min_time
+    | timechart $span_col$ count]
+| table _time Pass Fail</query>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.axisTitleY.text">Number of Features</option>
+        <option name="charting.axisTitleY2.visibility">visible</option>
+        <option name="charting.axisY.scale">linear</option>
+        <option name="charting.axisY2.abbreviation">none</option>
+        <option name="charting.axisY2.enabled">0</option>
+        <option name="charting.axisY2.scale">inherit</option>
+        <option name="charting.chart">column</option>
+        <option name="charting.chart.nullValueMode">connect</option>
+        <option name="charting.chart.showDataLabels">none</option>
+        <option name="charting.chart.stackMode">stacked</option>
+        <option name="charting.drilldown">all</option>
+        <option name="charting.fieldColors">{"Pass":0x00cc00, "Fail": 0xff0000}</option>
+        <option name="charting.layout.splitSeries">0</option>
+        <option name="charting.legend.placement">right</option>
+        <option name="refresh.display">progressbar</option>
+        <drilldown>
+          <link target="_blank">/app/pivt/ft_run_inspector?click_earliest=$earliest$&amp;click_latest=$latest$</link>
+        </drilldown>
+      </chart>
+    </panel>
+    <panel depends="$awsft$, $showawsft$">
+      <chart>
+        <title>AWS Functional Test Scenario Execution Count Over Time</title>
+        <search base="scenBaseSearch">
+          <query>| rename scen_passed as Pass, scen_failed as Fail
+| append
+    [| makeresults
+    | addinfo
+    | eval _time = info_min_time
+    | timechart $span_col$ count]
+| table _time Pass Fail</query>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.axisTitleY.text">Number of Scenarios</option>
+        <option name="charting.axisTitleY2.visibility">visible</option>
+        <option name="charting.axisY.scale">linear</option>
+        <option name="charting.axisY2.abbreviation">none</option>
+        <option name="charting.axisY2.enabled">0</option>
+        <option name="charting.axisY2.scale">inherit</option>
+        <option name="charting.chart">column</option>
+        <option name="charting.chart.nullValueMode">connect</option>
+        <option name="charting.chart.showDataLabels">none</option>
+        <option name="charting.chart.stackMode">stacked</option>
+        <option name="charting.drilldown">all</option>
+        <option name="charting.fieldColors">{"Pass":0x00cc00, "Fail": 0xff0000}</option>
+        <option name="charting.layout.splitSeries">0</option>
+        <option name="charting.legend.placement">right</option>
+        <option name="refresh.display">progressbar</option>
+        <drilldown>
+          <link target="_blank">/app/pivt/ft_run_inspector?click_earliest=$earliest$&amp;click_latest=$latest$</link>
+        </drilldown>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$awsft$, $showawsft$">
+      <chart>
+        <title>AWS Functional Test Feature Pass Rate Over Time</title>
+        <search base="ftBaseSearch">
+          <query>| timechart $span_line$ sum(feat_passed) as pass, sum(feat_failed) as fail
+| addtotals
+| where Total &gt; 0
+| eval passRate = round(pass / Total * 100, 3)
+| `lineartrend(_time, passRate)`
+| timechart $span_line$ values(passRate) as "Pass Rate", values(newY) as Trend
+| table _time "Pass Rate" Trend</query>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.overflowMode">ellipsisNone</option>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.axisTitleY.text">Pass Rate (%)</option>
+        <option name="charting.axisTitleY.visibility">visible</option>
+        <option name="charting.axisTitleY2.visibility">visible</option>
+        <option name="charting.axisX.abbreviation">none</option>
+        <option name="charting.axisX.scale">linear</option>
+        <option name="charting.axisY.abbreviation">none</option>
+        <option name="charting.axisY.maximumNumber">100</option>
+        <option name="charting.axisY.minimumNumber">0</option>
+        <option name="charting.axisY.scale">linear</option>
+        <option name="charting.axisY2.abbreviation">none</option>
+        <option name="charting.axisY2.enabled">0</option>
+        <option name="charting.axisY2.scale">inherit</option>
+        <option name="charting.chart">line</option>
+        <option name="charting.chart.bubbleMaximumSize">50</option>
+        <option name="charting.chart.bubbleMinimumSize">10</option>
+        <option name="charting.chart.bubbleSizeBy">area</option>
+        <option name="charting.chart.nullValueMode">connect</option>
+        <option name="charting.chart.showDataLabels">none</option>
+        <option name="charting.chart.sliceCollapsingThreshold">0.01</option>
+        <option name="charting.chart.stackMode">stacked100</option>
+        <option name="charting.chart.style">shiny</option>
+        <option name="charting.drilldown">none</option>
+        <option name="charting.fieldColors">{"Fail %": 0xff0000, "Pass %":0x00cc00, "Avg Total":0x000000}</option>
+        <option name="charting.layout.splitSeries">0</option>
+        <option name="charting.layout.splitSeries.allowIndependentYRanges">0</option>
+        <option name="charting.legend.labelStyle.overflowMode">ellipsisMiddle</option>
+        <option name="charting.legend.mode">standard</option>
+        <option name="charting.legend.placement">right</option>
+        <option name="charting.lineWidth">2</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="trellis.enabled">0</option>
+        <option name="trellis.scales.shared">1</option>
+        <option name="trellis.size">medium</option>
+      </chart>
+    </panel>
+    <panel depends="$awsft$, $showawsft$">
+      <chart>
+        <title>AWS Functional Test Scenario Pass Rate Over Time</title>
+        <search base="scenBaseSearch">
+          <query>| timechart $span_line$ sum(scen_passed) as pass, sum(scen_failed) as fail
+| addtotals
+| where Total &gt; 0
+| eval passRate = round(pass / Total * 100, 3)
+| `lineartrend(_time, passRate)`
+| timechart $span_line$ values(passRate) as "Pass Rate", values(newY) as Trend
+| table _time "Pass Rate" Trend</query>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.overflowMode">ellipsisNone</option>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.axisTitleY.text">Pass Rate (%)</option>
+        <option name="charting.axisTitleY.visibility">visible</option>
+        <option name="charting.axisTitleY2.visibility">visible</option>
+        <option name="charting.axisX.abbreviation">none</option>
+        <option name="charting.axisX.scale">linear</option>
+        <option name="charting.axisY.abbreviation">none</option>
+        <option name="charting.axisY.maximumNumber">100</option>
+        <option name="charting.axisY.minimumNumber">0</option>
+        <option name="charting.axisY.scale">linear</option>
+        <option name="charting.axisY2.abbreviation">none</option>
+        <option name="charting.axisY2.enabled">0</option>
+        <option name="charting.axisY2.scale">inherit</option>
+        <option name="charting.chart">line</option>
+        <option name="charting.chart.bubbleMaximumSize">50</option>
+        <option name="charting.chart.bubbleMinimumSize">10</option>
+        <option name="charting.chart.bubbleSizeBy">area</option>
+        <option name="charting.chart.nullValueMode">connect</option>
+        <option name="charting.chart.showDataLabels">none</option>
+        <option name="charting.chart.sliceCollapsingThreshold">0.01</option>
+        <option name="charting.chart.stackMode">stacked100</option>
+        <option name="charting.chart.style">shiny</option>
+        <option name="charting.drilldown">none</option>
+        <option name="charting.fieldColors">{"Fail %": 0xff0000, "Pass %":0x00cc00, "Avg Total":0x000000}</option>
+        <option name="charting.layout.splitSeries">0</option>
+        <option name="charting.layout.splitSeries.allowIndependentYRanges">0</option>
+        <option name="charting.legend.labelStyle.overflowMode">ellipsisMiddle</option>
+        <option name="charting.legend.mode">standard</option>
+        <option name="charting.legend.placement">right</option>
+        <option name="charting.lineWidth">2</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="trellis.enabled">0</option>
+        <option name="trellis.scales.shared">1</option>
+        <option name="trellis.size">medium</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$awsft$, $showawsft$">
+      <chart>
+        <title>AWS Functional Test Results</title>
+        <search base="awsFtBaseSearch">
+          <query>| timechart $span_col$ count by result
+| rename UNSTABLE as PARTIAL
+| table _time ABORTED FAILURE PARTIAL SUCCESS</query>
+          <progress>
+            <condition match="'job.resultCount' &gt; 0">
+              <set token="showawsft">true</set>
+            </condition>
+            <condition>
+              <unset token="showawsft"></unset>
+            </condition>
+          </progress>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.axisTitleY.text">Number of Runs</option>
+        <option name="charting.chart">column</option>
+        <option name="charting.chart.showDataLabels">none</option>
+        <option name="charting.chart.stackMode">stacked</option>
+        <option name="charting.fieldColors">{"ABORTED": 0x000000, "FAILURE": 0xff0000, "SUCCESS":0x00cc00, "PARTIAL": 0xffff00}</option>
+        <option name="charting.legend.placement">right</option>
+        <option name="refresh.display">progressbar</option>
+        <drilldown>
+          <eval token="drilldown.latest">$earliest$ + 86400</eval>
+          <link target="_blank">/app/pivt/search?q=index=pivt_jenkins stage=aws_functionaltest ss="$ss$" ci="$ci$" instance="$instance$" iteration="$iteration$" derived_cause="$cause$" BASELINE_VERSION="$release$" | eval clickName=if("$click.name2$"=="PARTIAL", "UNSTABLE", "$click.name2$") | where result=clickName | table _time ss ci stage number result duration ttr instance iteration&amp;earliest=$earliest$&amp;latest=$drilldown.latest$</link>
+        </drilldown>
+      </chart>
+    </panel>
+    <panel depends="$awsft$, $showawsft$">
+      <chart>
+        <title>AWS Functional Test Time To Repair (TTR)</title>
+        <search base="awsFtBaseSearch">
+          <query>| timechart $span_line$ avg(ttr) as ttr
+| eval ttr = ttr/60/60
+| where ttr &gt; 0
+| `lineartrend(_time, ttr)`
+| timechart $span_line$ values(ttr) as TTR, values(newY) as Trend
+| table _time TTR Trend</query>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.axisTitleY.text">TTR (hours)</option>
+        <option name="charting.axisY.minimumNumber">0</option>
+        <option name="charting.chart">line</option>
+        <option name="charting.chart.nullValueMode">connect</option>
+        <option name="charting.drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
+    </panel>
+  </row>
+</form>

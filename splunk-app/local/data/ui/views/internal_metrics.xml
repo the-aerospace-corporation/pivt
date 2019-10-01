@@ -1,0 +1,107 @@
+<form>
+  <label>Internal Metrics (BETA)</label>
+  <description>PIVT Version: 0.1.2.19.1 --- Last pull date: None</description>
+  <search id="usersBaseSearch">
+    <query>| tstats count from datamodel=internal_server where nodename=server.access by _time, server.user span=1d
+| rename server.user as user</query>
+    <earliest>$timeWindow.earliest$</earliest>
+    <latest>$timeWindow.latest$</latest>
+  </search>
+  <fieldset submitButton="false">
+    <input type="time" token="timeWindow" searchWhenChanged="true">
+      <label>Time Range</label>
+      <default>
+        <earliest>-30d@d</earliest>
+        <latest>now</latest>
+      </default>
+    </input>
+  </fieldset>
+  <row>
+    <panel>
+      <title>PIVT Dashboard Visits</title>
+      <table>
+        <search>
+          <query>| tstats count from datamodel=internal_server where nodename=server.ui_access by server.ui_access.dashboard
+| rename server.ui_access.dashboard as dashboard
+| append
+    [| rest /servicesNS/nobody/pivt/data/ui/views
+    | search eai:acl.app = pivt
+    | rename title as dashboard
+    | fields dashboard
+    | eval pivt_dashboard="yes"]
+| stats values(count) as count, values(pivt_dashboard) as pivt_dashboard by dashboard
+| where isnotnull(pivt_dashboard) AND isnotnull(count)
+| fields dashboard, count
+| eval dashboard = replace(dashboard, "_", " ")
+| sort -count
+| rename dashboard as Dashboard, count as Visits</query>
+          <earliest>$timeWindow.earliest$</earliest>
+          <latest>$timeWindow.latest$</latest>
+        </search>
+        <option name="count">20</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">cell</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+      </table>
+    </panel>
+    <panel>
+      <title>Number of Unique Users per Week</title>
+      <chart>
+        <search base="usersBaseSearch">
+          <query>| where user != "-" AND user != "splunk-system-user" AND user != "script_user"
+| join user type=outer
+    [| rest /services/authentication/users
+    | where isnotnull(realname)
+    | rename title as user
+    | table realname user]
+| eval name = coalesce(realname, user)
+| timechart span=7d dc(name)</query>
+        </search>
+        <option name="charting.axisTitleX.text">Date</option>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.axisTitleY.text">Count</option>
+        <option name="charting.axisTitleY.visibility">visible</option>
+        <option name="charting.axisTitleY2.visibility">visible</option>
+        <option name="charting.chart">line</option>
+        <option name="charting.drilldown">none</option>
+        <option name="charting.legend.placement">none</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Usage Percentage by User per Day</title>
+      <chart>
+        <search base="usersBaseSearch">
+          <query>where user != "-" AND user != "splunk-system-user" AND user != "script_user"
+| join user type=outer
+    [| rest /services/authentication/users
+    | where isnotnull(realname)
+    | rename title as user
+    | table realname user]
+| eval name = coalesce(realname, user)
+| eventstats sum(count) as total by _time
+| eval perc = count / total * 100
+| xyseries _time name perc</query>
+        </search>
+        <option name="charting.axisTitleX.text">Date</option>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.axisTitleY.text">Usage (%)</option>
+        <option name="charting.axisTitleY.visibility">visible</option>
+        <option name="charting.axisTitleY2.visibility">visible</option>
+        <option name="charting.axisY.maximumNumber">100</option>
+        <option name="charting.axisY.minimumNumber">0</option>
+        <option name="charting.chart">column</option>
+        <option name="charting.chart.stackMode">stacked</option>
+        <option name="charting.drilldown">none</option>
+        <option name="charting.legend.placement">right</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
+    </panel>
+  </row>
+</form>

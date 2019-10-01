@@ -1,0 +1,92 @@
+# Covers JetBrains IDEs: IntelliJ, RubyMine, PhpStorm, AppCode, PyCharm, CLion, Android Studio and WebStorm
+# Reference: https://intellij-support.jetbrains.com/hc/en-us/articles/206544839
+
+# User-specific stuff
+pivt/.idea/**/workspace.xml
+pivt/.idea/**/tasks.xml
+pivt/.idea/dictionaries
+pivt/.idea/misc.xml
+pivt/.idea/encodings.xml
+
+# Sensitive or high-churn files
+pivt/.idea/**/dataSources/
+pivt/.idea/**/dataSources.ids
+pivt/.idea/**/dataSources.local.xml
+pivt/.idea/**/sqlDataSources.xml
+pivt/.idea/**/dynamic.xml
+pivt/.idea/**/uiDesigner.xml
+
+# Gradle
+pivt/.idea/**/gradle.xml
+pivt/.idea/**/libraries
+
+# CMake
+pivt/cmake-build-debug/
+pivt/cmake-build-release/
+
+# Mongo Explorer plugin
+pivt/.idea/**/mongoSettings.xml
+
+# File-based project format
+pivt/*.iws
+
+# IntelliJ
+pivt/out/
+
+# mpeltonen/sbt-idea plugin
+pivt/.idea_modules/
+
+# JIRA plugin
+pivt/atlassian-ide-plugin.xml
+
+# Cursive Clojure plugin
+pivt/.idea/replstate.xml
+
+# Crashlytics plugin (for Android Studio and IntelliJ)
+pivt/com_crashlytics_export_strings.xml
+pivt/crashlytics.properties
+pivt/crashlytics-build.properties
+pivt/fabric.properties
+
+# Editor-based Rest Client
+pivt/.idea/httpRequests
+
+# VSCode
+.vscode/
+
+# PIVT
+pivt/venv/
+__pycache__/
+
+pivt/.cache/
+
+*.log
+pivt/.coverage
+pivt/htmlcov
+
+*.pyc
+pivt/.pytest_cache/
+docker/ut_data/
+
+
+# PIVT
+
+docker/ft_report.json
+# docker/splunk_etc/apps/*
+functests/ft-data
+
+/data/
+
+*.pyc
+
+aero-pivt*.tar.gz*
+
+splunk-app/lookups/
+
+splunk-app/appserver/static/visualizations/timeline/node_modules/
+splunk-app/appserver/static/visualizations/timeline/visualization.js
+splunk-app/appserver/static/visualizations/timeline/npm-debug.log
+
+# functest
+functests/*.log
+docker/Splunk.License.lic

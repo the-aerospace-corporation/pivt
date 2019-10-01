@@ -1,0 +1,25 @@
+<form class="splunk-formatter-section" section-label="X-Axis">
+    <splunk-control-group label="Title">
+        <splunk-text-input name="{{VIZ_NAMESPACE}}.xAxisTitle" value="">
+        </splunk-text-input>
+    </splunk-control-group>
+    <splunk-control-group label="Start at 1">
+        <splunk-radio-input name="{{VIZ_NAMESPACE}}.xAxisStartAt1" value="no">
+            <option value="yes">Yes</option>
+            <option value="no">No</option>
+        </splunk-radio-input>
+    </splunk-control-group>
+    <splunk-control-group label="Format">
+        <splunk-select name="{{VIZ_NAMESPACE}}.xAxisFormat" value="linear">
+            <option value="linear">Linear</option>
+            <option value="discrete">Discrete</option>
+            <option value="time">Time</option>
+        </splunk-select>
+    </splunk-control-group>
+</form>
+<form class="splunk-formatter-section" section-label="Y-Axis">
+    <splunk-control-group label="Title">
+        <splunk-text-input name="{{VIZ_NAMESPACE}}.yAxisTitle" value="">
+        </splunk-text-input>
+    </splunk-control-group>
+</form>

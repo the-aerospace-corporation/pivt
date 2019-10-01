@@ -1,0 +1,234 @@
+<form>
+  <label>%%ci33%% (BETA)</label>
+  <description>PIVT Version: 0.1.2.19.1 --- Last pull date: None</description>
+  <search id="filtersBaseSearch">
+    <query>index=pivt_ins pipeline=AllCores OR pipeline=patch OR core=AllCores
+| eval pipeline = if(isnull(pipeline), core, pipeline)
+| eval branch = if(isnull(branch), instance, branch)
+| stats count by pipeline, branch, id</query>
+    <earliest>$timeWindow.earliest$</earliest>
+    <latest>$timeWindow.latest$</latest>
+  </search>
+  <search id="baseSearch">
+    <query>index=pivt_ins pipeline=AllCores OR pipeline=patch OR core=AllCores
+| search pipeline=$pipeline$ branch=$branch$
+| rename params.JOB_START as job_start, params.JOB_END as job_end
+| eval pipeline = if(isnull(pipeline), core, pipeline)
+| eval branch = if(isnull(branch), instance, branch)
+| spath path=stages{} output=x
+| fields _time pipeline branch name id status durationMillis x job_start job_end
+| eval x = if(isnull(x), "-", x)
+| mvexpand x
+| rename id as run_id, name as run_name, status as run_status, durationMillis as run_duration
+| spath input=x
+| rename id as stage_id, name as stage_name, status as stage_status, durationMillis as stage_duration, truth.name as truth_name, truth.core as truth_core
+| rename run_id as id, run_name as name, run_status as status, run_duration as duration
+| sort -_time -id +stage_id
+| streamstats count as stage_num by id
+| eventstats count as stages_total by id
+| eval job_start_id = case(stage_name == job_start, stage_id, isnull(job_start), 0, true(), null())
+| sort -_time -id -job_start_id
+| filldown job_start_id
+| where if(x != "-", stage_id &gt;= job_start_id, true())
+| eval stage = mvzip(stage_name, mvzip(stage_num, mvzip(stage_status, stage_duration)))
+| stats values(status) as status, values(duration) as duration, count as stages_executed, values(stages_total) as stages_total, list(stage) as stages by _time, pipeline, branch, id
+| eval stages_executed = if(isnull(stages), 0, stages_executed)
+| eval stages_total = if(isnull(stages), 0, stages_total)
+| sort -_time
+| eval first_stage = mvindex(stages, 0)
+| rex field=first_stage "(?&lt;first_stage_executed&gt;.+),(?&lt;first_stage_num&gt;.+),.+,(?&lt;first_stage_duration&gt;.+)"
+| eval last_stage = mvindex(stages, -1)
+| rex field=last_stage "(?&lt;last_stage_executed&gt;.+),(?&lt;last_stage_num&gt;.+),(?&lt;last_stage_status&gt;.+),(?&lt;last_stage_duration&gt;.+)"
+| fields _time pipeline branch id status duration stages_executed stages_total first_stage_executed last_stage_executed first_stage_num last_stage_num</query>
+    <earliest>$timeWindow.earliest$</earliest>
+    <latest>$timeWindow.latest$</latest>
+  </search>
+  <fieldset submitButton="false" autoRun="true">
+    <input type="dropdown" token="pipeline" searchWhenChanged="true">
+      <label>Pipeline</label>
+      <search base="filtersBaseSearch">
+        <query>| stats count by pipeline</query>
+      </search>
+      <fieldForLabel>pipeline</fieldForLabel>
+      <fieldForValue>pipeline</fieldForValue>
+      <change>
+        <condition match="$value$ != $last_pipeline$">
+          <unset token="form.branch"></unset>
+        </condition>
+        <condition match="true()">
+          <set token="last_pipeline">$value$</set>
+        </condition>
+      </change>
+      <choice value="*">All</choice>
+      <default>*</default>
+      <initialValue>*</initialValue>
+    </input>
+    <input type="dropdown" token="branch" searchWhenChanged="true">
+      <label>Branch</label>
+      <search base="filtersBaseSearch">
+        <query>| search pipeline=$pipeline$ | stats count by branch</query>
+      </search>
+      <fieldForLabel>branch</fieldForLabel>
+      <fieldForValue>branch</fieldForValue>
+      <choice value="*">All</choice>
+      <default>*</default>
+      <initialValue>*</initialValue>
+    </input>
+    <input type="time" token="timeWindow" searchWhenChanged="true">
+      <label></label>
+      <default>
+        <earliest>-30d@d</earliest>
+        <latest>now</latest>
+      </default>
+    </input>
+  </fieldset>
+  <row>
+    <panel depends="$none$">
+      <table>
+        <search>
+          <query>| gentimes start=-1
+| addinfo
+| eval range = info_max_time - info_min_time
+| eval span_line = "span=" . case(range &lt; 5*24*3600+3600, "6h", range &lt; 21*24*3600+3600, "1d", range &lt; 3*31*24*3600+3600, "1w", 1=1, "1month")
+| eval span_col = "span=" . case(range &lt; 24*3600+3600, "1h", range &lt; 7*24*3600+3600, "1d", range &lt; 2*31*24*3600+3600, "1d", 1=1, "1w")
+| fields span_line span_col</query>
+          <earliest>$timeWindow.earliest$</earliest>
+          <latest>$timeWindow.latest$</latest>
+          <finalized>
+            <set token="span_line">$result.span_line$</set>
+            <set token="span_col">$result.span_col$</set>
+          </finalized>
+        </search>
+        <option name="count">10</option>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Stats</title>
+      <table>
+        <search base="baseSearch">
+          <query>| eval info = _time . "," . pipeline . "," . branch . "," . stages_total
+| stats values(info) as info, count by status
+| mvexpand info
+| xyseries info, status, count
+| rex field=info "(?&lt;_time&gt;.+),(?&lt;Pipeline&gt;.+),(?&lt;Branch&gt;.+),(?&lt;stages&gt;.+)"
+| fillnull ABORTED NOT_EXECUTED SUCCESS FAILED
+| stats count as Runs, earliest(_time) as earliest, latest(_time) as latest, latest(stages) as "# of Stages", max(ABORTED) AS ABORTED, max(NOT_EXECUTED) as NOT_EXECUTED, max(SUCCESS) as SUCCESS, max(FAILED) as FAILED by Pipeline, Branch
+| eval Total = ABORTED + NOT_EXECUTED + SUCCESS + FAILED
+| eval ABORTED=round(ABORTED/Total*100, 2)."%"
+| eval SUCCESS=round(SUCCESS/Total*100, 2)."%"
+| eval FAILED=round(FAILED/Total*100, 2)."%"
+| eval NOT_EXECUTED=round(NOT_EXECUTED/Total*100, 2)."%"
+| addinfo
+| eval Earliest=strftime(earliest, "%m/%d/%Y")
+| eval Latest=strftime(latest, "%m/%d/%Y")
+| eval windowEarliest = if(info_min_time == 0, earliest, info_min_time)
+| eval windowLatest = if(info_max_time == "+Infinity", latest, info_max_time)
+| eval "Runs/Day"=coalesce(round(Runs/ceiling((windowLatest - windowEarliest)/86400), 2), 1)
+| table Pipeline Branch Runs Earliest Latest "Runs/Day" "# of Stages" SUCCESS FAILED ABORTED NOT_EXECUTED</query>
+        </search>
+        <option name="count">20</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Runs by Result</title>
+      <chart>
+        <search base="baseSearch">
+          <query>| timechart $span_col$ count by status</query>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.overflowMode">ellipsisNone</option>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.axisTitleY.text">Runs</option>
+        <option name="charting.axisTitleY.visibility">visible</option>
+        <option name="charting.axisTitleY2.visibility">visible</option>
+        <option name="charting.axisX.abbreviation">none</option>
+        <option name="charting.axisX.scale">linear</option>
+        <option name="charting.axisY.abbreviation">none</option>
+        <option name="charting.axisY.scale">linear</option>
+        <option name="charting.axisY2.abbreviation">none</option>
+        <option name="charting.axisY2.enabled">0</option>
+        <option name="charting.axisY2.scale">inherit</option>
+        <option name="charting.chart">column</option>
+        <option name="charting.chart.bubbleMaximumSize">50</option>
+        <option name="charting.chart.bubbleMinimumSize">10</option>
+        <option name="charting.chart.bubbleSizeBy">area</option>
+        <option name="charting.chart.nullValueMode">connect</option>
+        <option name="charting.chart.showDataLabels">none</option>
+        <option name="charting.chart.sliceCollapsingThreshold">0.01</option>
+        <option name="charting.chart.stackMode">stacked</option>
+        <option name="charting.chart.style">shiny</option>
+        <option name="charting.drilldown">none</option>
+        <option name="charting.fieldColors">{"ABORTED": 0x000000, "FAILED": 0xff0000, "SUCCESS":0x00cc00, "NOT_EXECUTED": 0x606060}</option>
+        <option name="charting.layout.splitSeries">0</option>
+        <option name="charting.layout.splitSeries.allowIndependentYRanges">0</option>
+        <option name="charting.legend.labelStyle.overflowMode">ellipsisMiddle</option>
+        <option name="charting.legend.mode">standard</option>
+        <option name="charting.legend.placement">right</option>
+        <option name="charting.lineWidth">2</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="trellis.enabled">0</option>
+        <option name="trellis.scales.shared">1</option>
+        <option name="trellis.size">medium</option>
+      </chart>
+    </panel>
+    <panel>
+      <title>Stages Executed by Run (Last 20 Runs)</title>
+      <viz type="pivt.timeline">
+        <search base="baseSearch">
+          <query>| head 20
+| table id, first_stage_num, last_stage_num</query>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="pivt.timeline.xAxisFormat">discrete</option>
+        <option name="pivt.timeline.xAxisStartAt1">yes</option>
+        <option name="pivt.timeline.xAxisTitle">Stages</option>
+        <option name="pivt.timeline.yAxisTitle">Runs</option>
+        <option name="refresh.display">progressbar</option>
+      </viz>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Runs</title>
+      <table>
+        <search base="baseSearch">
+          <query>| eval duration = round(duration / 1000 / 60, 2)
+| rename duration as "duration (m)"
+| eval first_stage_executed = first_stage_executed . " (" . first_stage_num . ")"
+| eval last_stage_executed = last_stage_executed . " (" . last_stage_num . ")"
+| fields - first_stage_num, last_stage_num</query>
+        </search>
+        <option name="count">20</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">cell</option>
+        <option name="percentagesRow">false</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+        <format type="color" field="status">
+          <colorPalette type="map">{"SUCCESS":#65A637,"FAILED":#D93F3C,"ABORTED":#606060}</colorPalette>
+        </format>
+        <format type="color" field="stages_executed">
+          <colorPalette type="minMidMax" maxColor="#31A35F" minColor="#FFFFFF"></colorPalette>
+          <scale type="minMidMax"></scale>
+        </format>
+        <drilldown>
+          <link target="_blank">/app/pivt/ins_run_inspector?form.pipeline=$row.pipeline$&amp;form.branch=$row.branch$&amp;form.id=$row.id$</link>
+        </drilldown>
+      </table>
+    </panel>
+  </row>
+</form>

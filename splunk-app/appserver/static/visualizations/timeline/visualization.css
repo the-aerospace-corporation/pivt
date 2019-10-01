@@ -1,0 +1,72 @@
+/*
+ * CSS rules for visualization.
+ * Class namespacing is good practice.
+ */
+
+/* Center the main SVG in the page */
+.timeline-viz svg {
+    display: block;
+    margin: auto;
+    font-family: 'Lucida Grande', 'Lucida Sans Unicode', Arial, Helvetica;
+    font-size: 10px;
+    color: #3C444D;
+}
+
+.timeline-viz .bar {
+    fill: #3498db;
+}
+
+.timeline-viz .bar:hover {
+    fill: #2ecc71;
+}
+
+.timeline-viz .axis {
+    font-size: 11px;
+}
+
+.timeline-viz .x.axis path,
+.timeline-viz .x.axis line {
+    fill: none;
+    stroke-width: 0;
+}
+
+.timeline-viz .y.axis path,
+.timeline-viz .y.axis line {
+    fill: none;
+    stroke: lightgrey;
+    shape-rendering: crispEdges;
+}
+
+.timeline-viz .axis-label {
+    font-size: 12px;
+}
+
+.timeline-viz .grid line {
+    stroke: lightgrey;
+    opacity: .5;
+}
+
+.timeline-viz .grid path {
+    stroke-width: 0;
+}
+
+.timeline-viz .legend {
+    padding: 5px;
+    font-size: 10px;
+    background: yellow;
+    box-shadow: 2px 2px 1px #888;
+}
+
+.timeline-viz .tooltip {
+    background: #000;
+    box-shadow: 0 0 5px #999999;
+    font-size: 12px;
+    color: #fff;
+    left: 130px;
+    padding: 10px;
+    position: absolute;
+    text-align: center;
+    z-index: 10;
+    display: block;
+    opacity: 0;
+}

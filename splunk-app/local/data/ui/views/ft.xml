@@ -1,0 +1,267 @@
+<form>
+  <label>FT (BETA)</label>
+  <description>PIVT Version: 0.1.2.19.1 --- Last pull date: None</description>
+  <init>
+    <set token="showmessage">true</set>
+    <set token="only_latest_run">no</set>
+  </init>
+  <search id="baseSearch">
+    <query>index=pivt_jenkins_ft job_instance=Production job_ci=$ci$ report_name!=*integrity* source=*scenarios*
+| eval tags = split(replace(tags, ",", ""), ":")
+| eval core = if(isnotnull(tags) and isnotnull(mvfind(tags, "core")), "yes", "no")
+| eval scen = id . "|" . result . "|" . core
+| stats values(scen) as scen by _time, job_number
+| rename job_number as number
+| join type=inner _time number
+    [search index=pivt_jenkins stage=AWS_FunctionalTest instance=Production ci=$ci$ fullDisplayName="$job$ *" derived_cause=$cause$
+    | table _time ci number]
+| eventstats count as run_count
+| mvexpand scen
+| rex field=scen "(?&lt;id&gt;.+)\|(?&lt;result&gt;.+)\|(?&lt;core&gt;.+)"
+| eval result = if(result == "skipped", "failed", result)
+| table _time number id result core run_count</query>
+    <progress>
+      <condition match="'job.resultCount' &gt; 0">
+        <set token="showpanels">true</set>
+        <unset token="showmessage"></unset>
+      </condition>
+      <condition>
+        <unset token="showpanels"></unset>
+        <set token="showmessage">true</set>
+      </condition>
+    </progress>
+    <earliest>$time_window.earliest$</earliest>
+    <latest>$time_window.latest$</latest>
+    <sampleRatio>1</sampleRatio>
+  </search>
+  <search id="baseSearch2" base="baseSearch">
+    <query>| eventstats count as executions, count(eval(result=="passed")) as passed_executions by id
+| eval pass_rate = round(passed_executions / executions * 100, 2)
+| fields - passed_executions
+| sort 0 id -_time
+| streamstats current=f last(number) as last_number, last(result) as last_result by id
+| where result != last_result OR isnull(last_result)
+| streamstats count by id
+| where count &lt;= 2
+| eventstats count by id
+| streamstats current=f last(_time) as last_time, last(number) as last_number by id
+| eval since_time = if(count &lt; 2, "forever", strftime(_time, "%Y-%m-%d %H:%M:%S"))
+| where isnotnull(last_result) OR count == 1
+| eval runs_diff = last_number - number
+| eval status = if((count == 1 AND result == "passed") OR last_result == "passed", "passing", "failing")
+| eval since_run = if(isnotnull(runs_diff), number, null())
+| eval since_runs_ago = if(isnotnull(runs_diff), runs_diff, null())
+| eval _time = if(count == 1, _time, last_time)
+| eval last_run = if(count == 1, number, last_number)
+| fields _time id executions last_run status since_time since_run since_runs_ago run_count pass_rate core
+| join type=left id
+    [search index=pivt_jenkins_ft job_instance=Production job_ci=$ci$ report_name!=*integrity* source=*scenarios*
+    | eval result = if(result == "skipped", "failed", result)
+    | table _time job_number id result
+    | rename job_number as number
+    | join type=inner _time number
+        [search index=pivt_jenkins stage=AWS_FunctionalTest instance=Production ci=$ci$ fullDisplayName="$job$ *" derived_cause=$cause$
+        | table _time ci number]
+    | ttr ttrfield=ttr resultfield=result passvalue=passed id
+    | stats avg(ttr) as mttr by id
+    | where isnotnull(mttr)
+    | eval "mttr (h)" = round(mttr/60/60, 2)
+    | fields - mttr]</query>
+  </search>
+  <fieldset submitButton="false">
+    <input type="dropdown" token="ci" searchWhenChanged="true">
+      <label>CI</label>
+      <fieldForLabel>ci</fieldForLabel>
+      <fieldForValue>ci</fieldForValue>
+      <search>
+        <query>index=pivt_jenkins stage=AWS_FunctionalTest instance=Production
+| stats count by ci</query>
+        <earliest>$time_window.earliest$</earliest>
+        <latest>$time_window.latest$</latest>
+      </search>
+      <change>
+        <condition match="isnull($ci$)">
+          <set token="ci"></set>
+          <set token="job"></set>
+          <unset token="form.job"></unset>
+        </condition>
+      </change>
+    </input>
+    <input type="dropdown" token="job" searchWhenChanged="true">
+      <label>Job</label>
+      <search>
+        <query>index=pivt_jenkins stage=AWS_FunctionalTest instance=Production ci=$ci$
+| eval job = mvindex(split(fullDisplayName, " "), 0)
+| stats count by job</query>
+        <earliest>$time_window.earliest$</earliest>
+        <latest>$time_window.latest$</latest>
+      </search>
+      <change>
+        <condition match="isnull($job$)">
+          <set token="job"></set>
+        </condition>
+      </change>
+      <fieldForLabel>job</fieldForLabel>
+      <fieldForValue>job</fieldForValue>
+    </input>
+    <input type="dropdown" token="cause" searchWhenChanged="true">
+      <label>Cause</label>
+      <search>
+        <query>index=pivt_jenkins stage=AWS_FunctionalTest instance=Production ci=$ci$ fullDisplayName="$job$ *"
+| stats count by derived_cause</query>
+        <earliest>$time_window.earliest$</earliest>
+        <latest>$time_window.latest$</latest>
+      </search>
+      <fieldForLabel>derived_cause</fieldForLabel>
+      <fieldForValue>derived_cause</fieldForValue>
+      <choice value="*">All</choice>
+      <initialValue>*</initialValue>
+    </input>
+    <input type="time" token="time_window" searchWhenChanged="true">
+      <label></label>
+      <default>
+        <earliest>-7d@h</earliest>
+        <latest>now</latest>
+      </default>
+    </input>
+  </fieldset>
+  <row>
+    <panel depends="$debug$">
+      <table>
+        <search id="singleValuesBaseSearch" base="baseSearch2">
+          <query>| sort 0 -_time
+| stats first(_time) as latest_run_time, first(last_run) as latest_run_number, values(run_count) as run_count, count as scen_count
+| eval latest_run_time = strftime(latest_run_time, "%Y-%m-%d %H:%M:%S")</query>
+        </search>
+        <option name="count">10</option>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$showmessage$">
+      <html>
+        Select values from the dropdowns above.
+      </html>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$showpanels$">
+      <title>Latest Run Time</title>
+      <single>
+        <search base="singleValuesBaseSearch">
+          <query>| table latest_run_time</query>
+        </search>
+        <option name="drilldown">none</option>
+      </single>
+    </panel>
+    <panel depends="$showpanels$">
+      <title>Latest Run</title>
+      <single>
+        <search base="singleValuesBaseSearch">
+          <query>| table latest_run_number</query>
+          <done>
+            <set token="latest_run">$result.latest_run_number$</set>
+          </done>
+        </search>
+        <option name="drilldown">none</option>
+      </single>
+    </panel>
+    <panel depends="$showpanels$">
+      <title>Runs</title>
+      <single>
+        <search base="singleValuesBaseSearch">
+          <query>| table run_count</query>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </single>
+    </panel>
+    <panel depends="$showpanels$">
+      <title>Total Scenarios</title>
+      <single>
+        <search base="singleValuesBaseSearch">
+          <query>| table scen_count</query>
+        </search>
+        <option name="drilldown">none</option>
+      </single>
+    </panel>
+    <panel depends="$showpanels$">
+      <title>Overall Pass Rate</title>
+      <single>
+        <search base="baseSearch">
+          <query>| stats count, count(eval(result=="passed")) as passed
+| eval pass_rate = round(passed / count * 100, 2)
+| table pass_rate</query>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="unit">%</option>
+      </single>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$showpanels$">
+      <title>Runs</title>
+      <table>
+        <search base="baseSearch">
+          <query>| stats values(_time) as _time, count as scenarios_run, count(eval(result=="passed")) as passed by number
+| eval pass_rate = round(passed / scenarios_run * 100, 2)
+| fields _time number scenarios_run pass_rate
+| sort 0 -_time</query>
+        </search>
+        <option name="count">10</option>
+        <option name="drilldown">cell</option>
+        <option name="refresh.display">progressbar</option>
+        <drilldown>
+          <link target="_blank">/app/pivt/ft_run_inspector?form.instance=Production&amp;form.job=$job$&amp;form.number=$row.number$</link>
+        </drilldown>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$showpanels$">
+      <title>Scenarios</title>
+      <input type="dropdown" token="status" searchWhenChanged="true">
+        <label>Status</label>
+        <choice value="*">All</choice>
+        <choice value="passing">Passing</choice>
+        <choice value="failing">Failing</choice>
+        <initialValue>*</initialValue>
+        <default>*</default>
+      </input>
+      <input type="dropdown" token="core" searchWhenChanged="true">
+        <label>Core</label>
+        <choice value="*">All</choice>
+        <choice value="yes">Yes</choice>
+        <choice value="no">No</choice>
+        <initialValue>*</initialValue>
+        <default>*</default>
+      </input>
+      <input type="checkbox" token="only_latest_run" searchWhenChanged="true">
+        <label></label>
+        <choice value="yes">Only show scenarios in latest run</choice>
+        <change>
+          <condition match="isnull($only_latest_run$)">
+            <set token="only_latest_run">no</set>
+          </condition>
+        </change>
+      </input>
+      <table>
+        <search id="scenariosSearch" base="baseSearch2">
+          <query>| fields - run_count
+| search status=$status$ core=$core$
+| where if("$only_latest_run$" == "yes", last_run == $latest_run$, true())</query>
+        </search>
+        <option name="count">100</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+      </table>
+    </panel>
+  </row>
+</form>

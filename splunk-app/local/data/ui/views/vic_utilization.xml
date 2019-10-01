@@ -1,0 +1,294 @@
+<form>
+  <label>VIC Utilization</label>
+  <description>PIVT Version: 0.1.2.19.1 --- Last pull date: None</description>
+  <fieldset submitButton="false">
+    <input type="multiselect" token="ci" searchWhenChanged="true" id="multiinput1">
+      <label>CI</label>
+      <choice value="*">All</choice>
+      <initialValue>*</initialValue>
+      <fieldForLabel>ci</fieldForLabel>
+      <fieldForValue>ci</fieldForValue>
+      <search>
+        <query>| tstats count from datamodel=pivt_vic_status where $vic_type$ by vic_status.derived_ci
+| rename vic_status.derived_ci as ci</query>
+      </search>
+      <prefix>(</prefix>
+      <default>*</default>
+      <suffix>)</suffix>
+      <valuePrefix>vic_status.derived_ci=</valuePrefix>
+      <delimiter> OR </delimiter>
+    </input>
+    <input type="dropdown" token="vic_type" searchWhenChanged="true">
+      <label>VIC Type</label>
+      <choice value="*">All</choice>
+      <default>*</default>
+      <initialValue>*</initialValue>
+      <fieldForLabel>vic_status.type</fieldForLabel>
+      <fieldForValue>vic_status.type</fieldForValue>
+      <search>
+        <query>| tstats count from datamodel=pivt_vic_status where $ci$ by vic_status.type</query>
+      </search>
+      <prefix>vic_status.type=</prefix>
+    </input>
+    <input type="time" token="time_window" searchWhenChanged="true">
+      <label></label>
+      <default>
+        <earliest>-7d@h</earliest>
+        <latest>now</latest>
+      </default>
+    </input>
+  </fieldset>
+  <row>
+    <panel>
+      <html>
+        <h3>Definitions:</h3>
+        <p>
+          <b>Available:</b> A slot exists<br/>
+          <b>Allocated</b>: A VIC has reserved a slot<br/>
+          <b>Running:</b> A VIC is actively running and using resources</p>
+      </html>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>VIC Utilization</title>
+      <html>
+        The "Summary" row contains averages of each of the three columns.
+      </html>
+      <table>
+        <search>
+          <query>| tstats count as available, sum(vic_status.allocated) as allocated, sum(vic_status.running) as running from datamodel=pivt_vic_status where $ci$, $vic_type$ by vic_status.timestamp, vic_status.derived_ci
+| rename vic_status.timestamp as _time, vic_status.derived_ci as ci
+| appendpipe
+    [stats avg(available) as available, avg(allocated) as allocated, avg(running) as running
+    | eval ci = "zzzzzzzz"]
+| eval allocated = allocated / available * 100
+| eval running = running / available * 100
+| stats avg(available) as "Avg Available", avg(allocated) as "Avg Allocated", avg(running) as "Avg Running" by ci
+| eval ci = if(ci == "zzzzzzzz", "Summary", ci)
+| rename ci as "AWS Group"</query>
+          <earliest>$time_window.earliest$</earliest>
+          <latest>$time_window.latest$</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="count">20</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+        <format type="number" field="Avg Available"></format>
+        <format type="number" field="Avg Allocated (%)">
+          <option name="unit">%</option>
+        </format>
+        <format type="number" field="Avg Running (%)">
+          <option name="unit">%</option>
+        </format>
+        <format type="number" field="Avg Allocated">
+          <option name="unit">%</option>
+        </format>
+        <format type="number" field="Avg Running">
+          <option name="unit">%</option>
+        </format>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>VIC Status</title>
+      <chart>
+        <search>
+          <query>| tstats count as Available, sum(vic_status.allocated) as Allocated, sum(vic_status.running) as Running from datamodel=pivt_vic_status where $ci$, $vic_type$ by vic_status.timestamp
+| rename vic_status.timestamp as _time
+| timechart span=30m last(*) as *
+| fields _time Available Allocated Running</query>
+          <earliest>$time_window.earliest$</earliest>
+          <latest>$time_window.latest$</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.overflowMode">ellipsisNone</option>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.axisTitleY.text">VIC Count</option>
+        <option name="charting.axisTitleY.visibility">visible</option>
+        <option name="charting.axisTitleY2.visibility">visible</option>
+        <option name="charting.axisX.abbreviation">none</option>
+        <option name="charting.axisX.scale">linear</option>
+        <option name="charting.axisY.abbreviation">none</option>
+        <option name="charting.axisY.scale">linear</option>
+        <option name="charting.axisY2.abbreviation">none</option>
+        <option name="charting.axisY2.enabled">0</option>
+        <option name="charting.axisY2.scale">inherit</option>
+        <option name="charting.chart">area</option>
+        <option name="charting.chart.bubbleMaximumSize">50</option>
+        <option name="charting.chart.bubbleMinimumSize">10</option>
+        <option name="charting.chart.bubbleSizeBy">area</option>
+        <option name="charting.chart.nullValueMode">gaps</option>
+        <option name="charting.chart.showDataLabels">none</option>
+        <option name="charting.chart.sliceCollapsingThreshold">0.01</option>
+        <option name="charting.chart.stackMode">default</option>
+        <option name="charting.chart.style">shiny</option>
+        <option name="charting.drilldown">none</option>
+        <option name="charting.layout.splitSeries">0</option>
+        <option name="charting.layout.splitSeries.allowIndependentYRanges">0</option>
+        <option name="charting.legend.labelStyle.overflowMode">ellipsisMiddle</option>
+        <option name="charting.legend.mode">standard</option>
+        <option name="charting.legend.placement">right</option>
+        <option name="charting.lineWidth">2</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="trellis.enabled">0</option>
+        <option name="trellis.scales.shared">1</option>
+        <option name="trellis.size">medium</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>VICs by Type</title>
+      <chart>
+        <search>
+          <query>| tstats count from datamodel=pivt_vic_status where $ci$, vic_status.active=true by vic_status.timestamp, vic_status.type
+| rename vic_status.timestamp as _time
+| xyseries _time vic_status.type count
+| timechart span=30m last(*) as *</query>
+          <earliest>$time_window.earliest$</earliest>
+          <latest>$time_window.latest$</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.overflowMode">ellipsisNone</option>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.axisTitleY.text">VIC Count</option>
+        <option name="charting.axisTitleY.visibility">visible</option>
+        <option name="charting.axisTitleY2.visibility">visible</option>
+        <option name="charting.axisX.abbreviation">none</option>
+        <option name="charting.axisX.scale">linear</option>
+        <option name="charting.axisY.abbreviation">none</option>
+        <option name="charting.axisY.scale">linear</option>
+        <option name="charting.axisY2.abbreviation">none</option>
+        <option name="charting.axisY2.enabled">0</option>
+        <option name="charting.axisY2.scale">inherit</option>
+        <option name="charting.chart">area</option>
+        <option name="charting.chart.bubbleMaximumSize">50</option>
+        <option name="charting.chart.bubbleMinimumSize">10</option>
+        <option name="charting.chart.bubbleSizeBy">area</option>
+        <option name="charting.chart.nullValueMode">gaps</option>
+        <option name="charting.chart.showDataLabels">none</option>
+        <option name="charting.chart.sliceCollapsingThreshold">0.01</option>
+        <option name="charting.chart.stackMode">stacked</option>
+        <option name="charting.chart.style">shiny</option>
+        <option name="charting.drilldown">none</option>
+        <option name="charting.layout.splitSeries">0</option>
+        <option name="charting.layout.splitSeries.allowIndependentYRanges">0</option>
+        <option name="charting.legend.labelStyle.overflowMode">ellipsisMiddle</option>
+        <option name="charting.legend.mode">standard</option>
+        <option name="charting.legend.placement">right</option>
+        <option name="charting.lineWidth">2</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="trellis.enabled">0</option>
+        <option name="trellis.scales.shared">1</option>
+        <option name="trellis.size">medium</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Allocated VICs by CI</title>
+      <chart>
+        <search>
+          <query>| tstats count from datamodel=pivt_vic_status where vic_status.allocated=1, $ci$, $vic_type$ by vic_status.timestamp, vic_status.derived_ci
+| rename vic_status.timestamp as _time
+| xyseries _time vic_status.derived_ci count
+| timechart span=30m last(*) as *</query>
+          <earliest>$time_window.earliest$</earliest>
+          <latest>$time_window.latest$</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.overflowMode">ellipsisNone</option>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.axisTitleY.text">VIC Count</option>
+        <option name="charting.axisTitleY.visibility">visible</option>
+        <option name="charting.axisTitleY2.visibility">visible</option>
+        <option name="charting.axisX.abbreviation">none</option>
+        <option name="charting.axisX.scale">linear</option>
+        <option name="charting.axisY.abbreviation">none</option>
+        <option name="charting.axisY.scale">linear</option>
+        <option name="charting.axisY2.abbreviation">none</option>
+        <option name="charting.axisY2.enabled">0</option>
+        <option name="charting.axisY2.scale">inherit</option>
+        <option name="charting.chart">column</option>
+        <option name="charting.chart.bubbleMaximumSize">50</option>
+        <option name="charting.chart.bubbleMinimumSize">10</option>
+        <option name="charting.chart.bubbleSizeBy">area</option>
+        <option name="charting.chart.nullValueMode">gaps</option>
+        <option name="charting.chart.showDataLabels">none</option>
+        <option name="charting.chart.sliceCollapsingThreshold">0.01</option>
+        <option name="charting.chart.stackMode">stacked</option>
+        <option name="charting.chart.style">shiny</option>
+        <option name="charting.drilldown">none</option>
+        <option name="charting.layout.splitSeries">0</option>
+        <option name="charting.layout.splitSeries.allowIndependentYRanges">0</option>
+        <option name="charting.legend.labelStyle.overflowMode">ellipsisMiddle</option>
+        <option name="charting.legend.mode">standard</option>
+        <option name="charting.legend.placement">right</option>
+        <option name="charting.lineWidth">2</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="trellis.enabled">0</option>
+        <option name="trellis.scales.shared">1</option>
+        <option name="trellis.size">medium</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Running VICs by CI</title>
+      <chart>
+        <search>
+          <query>| tstats count from datamodel=pivt_vic_status where vic_status.running=1, $ci$, $vic_type$ by vic_status.timestamp, vic_status.derived_ci
+| rename vic_status.timestamp as _time
+| xyseries _time vic_status.derived_ci count
+| timechart span=30m last(*) as *</query>
+          <earliest>$time_window.earliest$</earliest>
+          <latest>$time_window.latest$</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.overflowMode">ellipsisNone</option>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.axisTitleY.text">VIC Count</option>
+        <option name="charting.axisTitleY.visibility">visible</option>
+        <option name="charting.axisTitleY2.visibility">visible</option>
+        <option name="charting.axisX.abbreviation">none</option>
+        <option name="charting.axisX.scale">linear</option>
+        <option name="charting.axisY.abbreviation">none</option>
+        <option name="charting.axisY.scale">linear</option>
+        <option name="charting.axisY2.abbreviation">none</option>
+        <option name="charting.axisY2.enabled">0</option>
+        <option name="charting.axisY2.scale">inherit</option>
+        <option name="charting.chart">column</option>
+        <option name="charting.chart.bubbleMaximumSize">50</option>
+        <option name="charting.chart.bubbleMinimumSize">10</option>
+        <option name="charting.chart.bubbleSizeBy">area</option>
+        <option name="charting.chart.nullValueMode">gaps</option>
+        <option name="charting.chart.showDataLabels">none</option>
+        <option name="charting.chart.sliceCollapsingThreshold">0.01</option>
+        <option name="charting.chart.stackMode">stacked</option>
+        <option name="charting.chart.style">shiny</option>
+        <option name="charting.drilldown">none</option>
+        <option name="charting.layout.splitSeries">0</option>
+        <option name="charting.layout.splitSeries.allowIndependentYRanges">0</option>
+        <option name="charting.legend.labelStyle.overflowMode">ellipsisMiddle</option>
+        <option name="charting.legend.mode">standard</option>
+        <option name="charting.legend.placement">right</option>
+        <option name="charting.lineWidth">2</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="trellis.enabled">0</option>
+        <option name="trellis.scales.shared">1</option>
+        <option name="trellis.size">medium</option>
+      </chart>
+    </panel>
+  </row>
+</form>

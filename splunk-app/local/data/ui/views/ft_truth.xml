@@ -1,0 +1,376 @@
+<form>
+  <label>FT Truth (BETA)</label>
+  <description>PIVT Version: 0.1.2.19.1 --- Last pull date: None</description>
+  <search id="baseSearch">
+    <query>| savedsearch "PIVT Jenkins FT Scenarios" instance=Production tag=all nominal=yes</query>
+    <earliest>$timeWindow.earliest$</earliest>
+    <latest>$timeWindow.latest$</latest>
+  </search>
+  <search id="chartBaseSearch" base="baseSearch">
+    <query>| search $ci$ $cause$ $ins_build$ $ins_version$ $dms_version$ $eis_version$</query>
+  </search>
+  <search id="filtersBaseSearch" base="baseSearch">
+    <query>| append
+    [| savedsearch "PIVT Scenario Truth"]
+| stats count by ci, derived_cause, %%ci33%%_BUILD_TYPE, %%ci33%%_BUILD_VERSION, %%ci21%%_BUILD_VERSION, %%ci22%%_BUILD_VERSION</query>
+  </search>
+  <fieldset submitButton="false">
+    <input type="multiselect" token="ci" searchWhenChanged="true" id="multiinput1">
+      <label>CI</label>
+      <choice value="*">All</choice>
+      <initialValue>*</initialValue>
+      <fieldForLabel>ci</fieldForLabel>
+      <fieldForValue>ci</fieldForValue>
+      <search base="filtersBaseSearch">
+        <query>| search $cause$ $ins_build$ $ins_version$ $dms_version$ $eis_version$
+| stats count by ci</query>
+      </search>
+      <default>*</default>
+      <prefix>(</prefix>
+      <suffix>)</suffix>
+      <valuePrefix>ci="</valuePrefix>
+      <valueSuffix>"</valueSuffix>
+      <delimiter> OR </delimiter>
+    </input>
+    <input type="multiselect" token="cause" searchWhenChanged="true" id="multiinput2">
+      <label>Cause</label>
+      <choice value="*">All</choice>
+      <initialValue>*</initialValue>
+      <fieldForLabel>derived_cause</fieldForLabel>
+      <fieldForValue>derived_cause</fieldForValue>
+      <search base="filtersBaseSearch">
+        <query>| search $ci$ $ins_build$ $ins_version$ $dms_version$ $eis_version$
+| stats count by derived_cause</query>
+      </search>
+      <default>*</default>
+      <prefix>(</prefix>
+      <suffix>)</suffix>
+      <valuePrefix>derived_cause="</valuePrefix>
+      <valueSuffix>"</valueSuffix>
+      <delimiter> OR </delimiter>
+    </input>
+    <input type="multiselect" token="ins_build" searchWhenChanged="true" id="multiinput3">
+      <label>%%ci33%% Build</label>
+      <choice value="*">All</choice>
+      <initialValue>*</initialValue>
+      <fieldForLabel>%%ci33%%_BUILD_TYPE</fieldForLabel>
+      <fieldForValue>%%ci33%%_BUILD_TYPE</fieldForValue>
+      <search base="filtersBaseSearch">
+        <query>| search $ci$ $cause$ $ins_version$ $dms_version$ $eis_version$
+| stats count by %%ci33%%_BUILD_TYPE</query>
+      </search>
+      <default>*</default>
+      <prefix>(</prefix>
+      <suffix>)</suffix>
+      <valuePrefix>%%ci33%%_BUILD_TYPE="</valuePrefix>
+      <valueSuffix>"</valueSuffix>
+      <delimiter> OR </delimiter>
+    </input>
+    <input type="multiselect" token="ins_version" searchWhenChanged="true" id="multiinput4">
+      <label>%%ci33%% Version</label>
+      <choice value="*">All</choice>
+      <initialValue>*</initialValue>
+      <fieldForLabel>%%ci33%%_BUILD_VERSION</fieldForLabel>
+      <fieldForValue>%%ci33%%_BUILD_VERSION</fieldForValue>
+      <search base="filtersBaseSearch">
+        <query>| search $ci$ $cause$ $ins_build$ $dms_version$ $eis_version$
+| stats count by %%ci33%%_BUILD_VERSION</query>
+      </search>
+      <default>*</default>
+      <prefix>(</prefix>
+      <suffix>)</suffix>
+      <valuePrefix>%%ci33%%_BUILD_VERSION="</valuePrefix>
+      <valueSuffix>"</valueSuffix>
+      <delimiter> OR </delimiter>
+    </input>
+    <input type="multiselect" token="dms_version" searchWhenChanged="true" id="multiinput5">
+      <label>%%ci21%% Version</label>
+      <choice value="*">All</choice>
+      <initialValue>*</initialValue>
+      <fieldForLabel>%%ci21%%_BUILD_VERSION</fieldForLabel>
+      <fieldForValue>%%ci21%%_BUILD_VERSION</fieldForValue>
+      <search base="filtersBaseSearch">
+        <query>| search $ci$ $cause$ $ins_build$ $ins_version$ $eis_version$
+| stats count by %%ci21%%_BUILD_VERSION</query>
+      </search>
+      <default>*</default>
+      <prefix>(</prefix>
+      <suffix>)</suffix>
+      <valuePrefix>%%ci21%%_BUILD_VERSION="</valuePrefix>
+      <valueSuffix>"</valueSuffix>
+      <delimiter> OR </delimiter>
+    </input>
+    <input type="multiselect" token="eis_version" searchWhenChanged="true" id="multiinput6">
+      <label>%%ci22%% Version</label>
+      <choice value="*">All</choice>
+      <initialValue>*</initialValue>
+      <fieldForLabel>%%ci22%%_BUILD_VERSION</fieldForLabel>
+      <fieldForValue>%%ci22%%_BUILD_VERSION</fieldForValue>
+      <search base="filtersBaseSearch">
+        <query>| search $ci$ $cause$ $ins_build$ $ins_version$ $dms_version$
+| stats count by %%ci22%%_BUILD_VERSION</query>
+      </search>
+      <default>*</default>
+      <prefix>(</prefix>
+      <suffix>)</suffix>
+      <valuePrefix>%%ci22%%_BUILD_VERSION="</valuePrefix>
+      <valueSuffix>"</valueSuffix>
+      <delimiter> OR </delimiter>
+    </input>
+    <input type="time" token="timeWindow" searchWhenChanged="true">
+      <label></label>
+      <default>
+        <earliest>-7d@h</earliest>
+        <latest>now</latest>
+      </default>
+    </input>
+  </fieldset>
+  <row>
+    <panel>
+      <html>Authoritative SEIT truth table received 7/25/2019</html>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Truth Scenario Count by CI</title>
+      <html>
+        <h3>Column descriptions:</h3>
+        <ul>
+          <li>Total (Truth): Total number of tests that exist in a CIs test suite (not all of them may be executed regularly or at all)</li>
+          <li>Core (Truth): Total number of core tests defined by SEIT</li>
+          <li>Core Tagged (Truth): Number of tests in a CIs test suite that are tagged as @core</li>
+          <li>Total (Run): Average number of tests run in the pipeline over a specific time period</li>
+          <li>Passed (Run) %: Average pass rate of tests run in the pipeline over a specific time period</li>
+          <li>Core (Run): Average number of core tests run in the pipeline over a specific time period</li>
+          <li>Core Passed (Run) %: Average pass rate of core tests run in the pipeline over a specific time period</li>
+        </ul>
+      </html>
+      <table>
+        <search base="chartBaseSearch">
+          <query>| stats avg(scen_count) as run_total, avg(scen_passed) as run_passed, avg(core_tests) as run_core_total, avg(core_passed) as run_core_passed by ci
+| join type=left ci
+    [| savedsearch "PIVT Scenario Truth"
+    | search $ci$
+    | eval core_truth = if(lower(core_truth) == "yes", Outline, 0)
+    | eval core_tagged = if(lower(core_tagged) == "yes", Outline, 0)
+    | stats sum(Outline) as "Total (Truth)", sum(core_truth) as "Core (Truth)", sum(core_tagged) as "Core Tagged (Truth)" by ci]
+| rename ci as CI
+| eval run_passed = run_passed / run_total * 100
+| eval run_core_passed = run_core_passed / run_core_total * 100
+| rename run_total as "Total (Run)"
+| rename run_passed as "Passed (Run) %"
+| rename run_core_total as "Core (Run)"
+| rename run_core_passed as "Core Passed (Run) %"
+| fields CI "Total (Truth)" "Core (Truth)" "Core Tagged (Truth)" "Total (Run)" "Passed (Run) %" "Core (Run)" "Core Passed (Run) %"</query>
+        </search>
+        <option name="count">20</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+        <format type="number" field="Total (Run)"></format>
+        <format type="number" field="Passed (Run) %">
+          <option name="unit">%</option>
+        </format>
+        <format type="number" field="Core (Run)"></format>
+        <format type="number" field="Core Passed (Run) %">
+          <option name="unit">%</option>
+        </format>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Matching Core Scenarios (Run vs. Truth)</title>
+      <html>
+        Use this table to determine how many running scenarios are in the "truth table" for each CI.
+        <h3>Column descriptions:</h3>
+        <ul>
+          <li>Truth: Total number of core tests defined by SEIT</li>
+          <li>Run: Average number of core tests run in the pipeline over a specific time period</li>
+          <li>Match %: Percentage of core tests run in the pipeline that exist in the truth table</li>
+          <li>Match Passing %: Average pass rate of the matching core tests</li>
+        </ul>
+      </html>
+      <table>
+        <search>
+          <query>| savedsearch "PIVT Jenkins FT Scenarios" instance=Production tag=core nominal=yes
+| join type=outer _time instance ci release number
+    [| tstats values(ft.scenarios.scen) as scen from datamodel=pivt_jenkins.ft where nodename=ft.scenarios, ft.job_instance=production, ft.report_name!=*integrity*, ft.core=1 by ft.job_timestamp, ft.job_instance, ft.job_ci, ft.job_release, ft.job_number
+    | rename ft.job_timestamp as _time
+    | eval _time = _time / 1000
+    | rename ft.* as *
+    | rename job_* as *]
+| search $ci$ $cause$ $ins_build$ $ins_version$ $dms_version$ $eis_version$
+| eval scen = if(isnull(scen) and scen_count == 0, "-", scen)
+| fields _time ci release number scen
+| eval scen = split(scen, " ")
+| mvexpand scen
+| eval scen = if(scen == "-", null(), scen)
+| eval scen = split(scen, ",")
+| eval id = if(isnull(scen), "-", mvjoin(mvindex(scen, 0, -2), ","))
+| eval result = mvindex(scen, -1)
+| eval id_split = split(id, ";")
+| eval id = mvjoin(mvindex(id_split, 0, 1), ";")
+| stats count(eval(isnotnull(scen))) as run, count(eval(result=="passed")) as run_pass_count by _time, ci, release, number, id
+| appendpipe
+    [stats sum(run) as run_by_run, sum(run_pass_count) as run_pass_count_by_run by _time, ci, release, number
+    | stats avg(run_by_run) as run_by_ci, avg(run_pass_count_by_run) as run_pass_count_by_ci by ci
+    | eval id = "-"]
+| append
+    [| savedsearch "PIVT Scenario Truth"
+    | search $ci$
+    | where lower(core_truth)=="yes"
+    | rename "Test Name" as test_name
+    | eval id = replace(replace(lower(test_name), " // ", ";"), " ", "-")
+    | fields ci id core_tagged core_truth Outline]
+| stats sum(Outline) as Outline, values(core_tagged) as core_tagged, values(core_truth) as core_truth, max(run) as run, values(run_by_ci) as run_by_ci, max(run_pass_count) as run_pass_count, values(run_pass_count_by_ci) as run_pass_count_by_ci by ci, id
+| eval match = if(isnotnull(Outline) AND isnotnull(run), 1, 0)
+| eval match_passing = if(match == 1 AND run_pass_count&gt;=Outline, 1, 0)
+| stats sum(Outline) as Truth, values(run_by_ci) as Run, sum(match) as match, sum(match_passing) as match_passing by ci
+| eval "Match %" = match / Run * 100
+| eval "Match Passing %" = match_passing / match * 100
+| rename ci as CI
+| fields CI Truth Run "Match %" "Match Passing %"</query>
+          <earliest>$timeWindow.earliest$</earliest>
+          <latest>$timeWindow.latest$</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="count">20</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+        <format type="number" field="Match %">
+          <option name="unit">%</option>
+        </format>
+        <format type="number" field="Match Passing %">
+          <option name="unit">%</option>
+        </format>
+        <format type="number" field="Run"></format>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Truth scenarios combined with actual runs</title>
+      <table>
+        <title>total_truth and total_core_truth are the total count of tests for a specific CI</title>
+        <search base="chartBaseSearch">
+          <query>| eval build = _time . "," . release . "," . number . "," . scen_passed . "," . scen_count . "," . core_tests . "," . core_passed
+| stats values(build) as build by ci
+| join type=left ci
+    [| savedsearch "PIVT Scenario Truth"
+     | search $ci$
+     | eval core_truth = if(lower(core_truth) == "yes", Outline, 0)
+     | stats sum(Outline) as total_truth, sum(core_truth) as total_core_truth by ci]
+| mvexpand build
+| rex field=build "(?&lt;_time&gt;.+),(?&lt;release&gt;.+),(?&lt;number&gt;\d+),(?&lt;pass_count&gt;\d+),(?&lt;total&gt;\d+),(?&lt;core_total&gt;\d+),(?&lt;core_pass_count&gt;\d+)"
+| eval passed = pass_count / total * 100
+| eval core_passed = core_pass_count / core_total * 100
+| fields _time ci release number total passed core_total core_passed total_truth total_core_truth
+| sort -_time</query>
+        </search>
+        <option name="count">20</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+        <format type="number" field="passed">
+          <option name="unit">%</option>
+        </format>
+        <format type="number" field="core_passed">
+          <option name="unit">%</option>
+        </format>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Actual core tests run vs truth core count by CI</title>
+      <chart>
+        <title>Flat line is total number of truth core tests; bars represent executed core tests in a run</title>
+        <search base="chartBaseSearch">
+          <query>| eval build = _time . "," . release . "," . number . "," . core_tests
+| stats values(build) as build by ci
+| join type=left ci
+    [| savedsearch "PIVT Scenario Truth"
+    | search $ci$
+    | eval core_truth = if(lower(core_truth) == "yes", Outline, 0)
+    | stats sum(core_truth) as core_truth by ci]
+| mvexpand build
+| rex field=build "(?&lt;_time&gt;.+),(?&lt;release&gt;.+),(?&lt;number&gt;\d+),(?&lt;core_run&gt;\d+)"
+| chart limit=0 values(core_run) as core_run, values(core_truth) as core_truth by _time, ci</query>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.overflowMode">ellipsisNone</option>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.axisTitleY.visibility">collapsed</option>
+        <option name="charting.axisTitleY2.visibility">collapsed</option>
+        <option name="charting.axisX.abbreviation">none</option>
+        <option name="charting.axisX.scale">linear</option>
+        <option name="charting.axisY.abbreviation">none</option>
+        <option name="charting.axisY.minimumNumber">0</option>
+        <option name="charting.axisY.scale">linear</option>
+        <option name="charting.axisY2.abbreviation">none</option>
+        <option name="charting.axisY2.enabled">0</option>
+        <option name="charting.axisY2.scale">inherit</option>
+        <option name="charting.chart">column</option>
+        <option name="charting.chart.bubbleMaximumSize">50</option>
+        <option name="charting.chart.bubbleMinimumSize">10</option>
+        <option name="charting.chart.bubbleSizeBy">area</option>
+        <option name="charting.chart.nullValueMode">connect</option>
+        <option name="charting.chart.overlayFields">core_truth</option>
+        <option name="charting.chart.showDataLabels">none</option>
+        <option name="charting.chart.sliceCollapsingThreshold">0.01</option>
+        <option name="charting.chart.stackMode">default</option>
+        <option name="charting.chart.style">shiny</option>
+        <option name="charting.drilldown">none</option>
+        <option name="charting.layout.splitSeries">0</option>
+        <option name="charting.layout.splitSeries.allowIndependentYRanges">0</option>
+        <option name="charting.legend.labelStyle.overflowMode">ellipsisMiddle</option>
+        <option name="charting.legend.mode">standard</option>
+        <option name="charting.legend.placement">none</option>
+        <option name="charting.lineWidth">2</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="trellis.enabled">1</option>
+        <option name="trellis.scales.shared">0</option>
+        <option name="trellis.size">small</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Truth Table</title>
+      <table>
+        <title>"Scenario Details" sheet - feature_id is a derived field from feature_name</title>
+        <search>
+          <query>| savedsearch "PIVT Scenario Truth"
+| search $ci$
+| rename "Feature Name" as feature_name
+| eval feature_id = replace(lower(feature_name), " ", "-")</query>
+          <earliest>$timeWindow.earliest$</earliest>
+          <latest>$timeWindow.latest$</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="count">20</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+      </table>
+    </panel>
+  </row>
+</form>
